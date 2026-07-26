@@ -78,7 +78,7 @@ export function HistoryView() {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search replies, rewrites, ideas or sources"
+          placeholder="Search replies, refinements, ideas or sources"
           aria-label="Search History"
         />
         <SelectRoot value={filter} onValueChange={(value) => setFilter(value as HistoryFilter)}>
@@ -88,7 +88,7 @@ export function HistoryView() {
           <SelectContent>
             <SelectItem value="all">All work</SelectItem>
             <SelectItem value="reply">Replies</SelectItem>
-            <SelectItem value="rewrite">Rewrites</SelectItem>
+            <SelectItem value="rewrite">Refinements</SelectItem>
             <SelectItem value="idea">Ideas</SelectItem>
           </SelectContent>
         </SelectRoot>
@@ -280,9 +280,11 @@ function ExpandedRecord({
   if (record.type === 'rewrite') {
     return (
       <div className="space-y-3 border-t border-rule px-4 pb-4 pt-3">
-        <strong className="text-xs">Saved rewrite</strong>
+        <strong className="text-xs">
+          {record.mode === 'context' ? 'Saved profile-grounded post' : 'Saved refinement'}
+        </strong>
         <Textarea
-          aria-label="Saved rewrite"
+          aria-label="Saved refinement"
           value={record.currentText}
           onChange={(event) =>
             void onSave({
@@ -295,11 +297,42 @@ function ExpandedRecord({
         />
         <AccordionRoot type="multiple" defaultValue={['original']}>
           <AccordionItem value="original">
-            <AccordionTrigger>Original content</AccordionTrigger>
-            <AccordionContent>
+            <AccordionTrigger>
+              {record.mode === 'context' ? 'Original source and provenance' : 'Original content'}
+            </AccordionTrigger>
+            <AccordionContent className="space-y-2">
               <p className="whitespace-pre-wrap leading-relaxed">{record.original}</p>
+              {record.source?.permalink ? (
+                <a
+                  href={record.source.permalink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-proof underline"
+                >
+                  Open {record.source.author}’s LinkedIn post
+                  <ExternalLink className="size-3" />
+                </a>
+              ) : null}
             </AccordionContent>
           </AccordionItem>
+          {record.grounding ? (
+            <AccordionItem value="grounding">
+              <AccordionTrigger>Grounding report</AccordionTrigger>
+              <AccordionContent className="space-y-2 leading-relaxed">
+                <p>
+                  <strong>Profile:</strong> {record.grounding.profile}
+                </p>
+                <p>
+                  <strong>Experience:</strong>{' '}
+                  {record.experiencePerspective || 'No personal experience claim'}
+                </p>
+                <p>
+                  <strong>Tone and preferences:</strong> {record.grounding.tone} ·{' '}
+                  {record.grounding.preferences}
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
           <RevisionsItem revisions={record.revisions} />
         </AccordionRoot>
       </div>
@@ -386,19 +419,26 @@ function RecordMeta({ record }: { record: WorkHistoryRecord }) {
   const sourceLink =
     record.type === 'reply'
       ? record.source.permalink
-      : record.type === 'idea' && record.origin.kind === 'source'
-        ? record.origin.evidence.url
-        : undefined;
+      : record.type === 'rewrite' && record.mode === 'context'
+        ? record.source?.permalink
+        : record.type === 'idea' && record.origin.kind === 'source'
+          ? record.origin.evidence.url
+          : undefined;
   return (
     <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[10.5px] text-muted">
       {record.type === 'reply' ? <span>{record.source.author}</span> : null}
+      {record.type === 'rewrite' && record.mode === 'context' ? (
+        <span>{record.source?.author}</span>
+      ) : null}
       {record.type === 'idea' && record.origin.kind === 'source' ? (
         <span>{sourceName(record.origin.evidence.source)}</span>
       ) : null}
       <time>{compactTimestamp(record.updatedAt)}</time>
       {sourceLink ? (
         <a href={sourceLink} target="_blank" rel="noreferrer" className="text-proof underline">
-          {record.type === 'reply' ? 'Open source post' : 'Open source'}
+          {record.type === 'reply' || record.type === 'rewrite'
+            ? 'Open source post'
+            : 'Open source'}
         </a>
       ) : null}
     </div>
@@ -419,13 +459,17 @@ function RecordPreview({ record }: { record: WorkHistoryRecord }) {
 
 function recordTitle(record: WorkHistoryRecord): string {
   if (record.type === 'reply') return record.title ?? `Reply to ${record.source.author}`;
-  if (record.type === 'rewrite') return record.original.slice(0, 72);
+  if (record.type === 'rewrite')
+    return record.mode === 'context' && record.source
+      ? `Your perspective on ${record.source.author}’s post`
+      : record.original.slice(0, 72);
   return record.title;
 }
 
 function recordBadge(record: WorkHistoryRecord): string {
   if (record.type === 'reply') return 'Reply · edited';
-  if (record.type === 'rewrite') return 'Rewrite';
+  if (record.type === 'rewrite')
+    return record.mode === 'context' ? 'Refine · LinkedIn source' : 'Refine';
   return record.origin.kind === 'source' ? 'Idea · sourced' : 'Idea · experience';
 }
 
@@ -436,7 +480,13 @@ function searchableText(record: WorkHistoryRecord): string {
       record.source.postExcerpt,
       ...record.directions.flatMap((direction) => [direction.currentText, direction.approach]),
     ].join(' ');
-  if (record.type === 'rewrite') return [record.original, record.currentText].join(' ');
+  if (record.type === 'rewrite')
+    return [
+      record.original,
+      record.currentText,
+      record.source?.author,
+      record.experiencePerspective,
+    ].join(' ');
   return [
     record.title,
     record.currentText,
@@ -453,7 +503,7 @@ function directionLabel(direction: ReplyDirectionId): string {
 }
 
 function filterLabel(filter: HistoryFilter): string {
-  return { all: 'All work', reply: 'Replies', rewrite: 'Rewrites', idea: 'Ideas' }[filter];
+  return { all: 'All work', reply: 'Replies', rewrite: 'Refinements', idea: 'Ideas' }[filter];
 }
 
 function compactTimestamp(value: string): string {

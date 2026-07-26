@@ -36,7 +36,18 @@ export function SidePanelApp() {
   }
 
   const changeTab = async (tab: ActiveTab) => {
-    await storageRepository.updateSession((current) => ({ ...current, activeTab: tab }));
+    await storageRepository.updateSession((current) => {
+      if (tab !== 'generate' || current.activeTab === 'generate') {
+        return { ...current, activeTab: tab };
+      }
+      const next = {
+        ...current,
+        activeTab: tab,
+        refinement: { status: 'idle' as const },
+      };
+      delete next.activeRecordId;
+      return next;
+    });
     await refresh();
   };
 
@@ -48,6 +59,11 @@ export function SidePanelApp() {
   return (
     <AppShell
       activeTab={activeTab}
+      contentKey={[
+        activeTab,
+        session.activeRecordId ?? 'compose',
+        activeTab === 'generate' ? session.refinement.status : '',
+      ].join(':')}
       onTabChange={(tab) => void changeTab(tab)}
       savedLabel={activeTab === 'history' ? 'Saved on this device' : undefined}
       savedStatusLabel={

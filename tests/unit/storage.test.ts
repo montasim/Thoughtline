@@ -17,6 +17,25 @@ describe('Chrome storage repository', () => {
     expect(snapshot.session.activeTab).toBe('reply');
   });
 
+  it('adds safe context-refinement defaults when loading pre-v6 local data', async () => {
+    const legacy = structuredClone(defaultAppData) as unknown as {
+      settings: Record<string, unknown>;
+    };
+    delete legacy.settings.contextRefinementEnabled;
+    delete legacy.settings.retainRefinementSourceLink;
+    delete legacy.settings.requireExperienceConfirmation;
+    memory.local.set('thoughtline.app-data', legacy);
+
+    const repository = new ChromeStorageRepository();
+    const loaded = await repository.loadAppData();
+
+    expect(loaded.settings).toMatchObject({
+      contextRefinementEnabled: true,
+      retainRefinementSourceLink: true,
+      requireExperienceConfirmation: true,
+    });
+  });
+
   it('enforces the configured history limit when saving from any surface', async () => {
     const repository = new ChromeStorageRepository();
     const app = structuredClone(defaultAppData);

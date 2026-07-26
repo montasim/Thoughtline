@@ -16,6 +16,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const extensionPath = path.join(root, '.output/chrome-mv3');
 let context: BrowserContext | undefined;
 let page: Page;
+let sidePanelUrl: string;
 
 test.beforeAll(async () => {
   context = await chromium.launchPersistentContext('', {
@@ -31,9 +32,10 @@ test.beforeAll(async () => {
   let worker = context.serviceWorkers()[0];
   worker ??= await context.waitForEvent('serviceworker');
   const extensionId = new URL(worker.url()).host;
+  sidePanelUrl = `chrome-extension://${extensionId}/sidepanel.html`;
   page = await context.newPage();
   await page.setViewportSize({ width: 400, height: 820 });
-  await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+  await page.goto(sidePanelUrl);
 });
 
 test.afterAll(async () => context?.close());
@@ -149,19 +151,21 @@ for (const [tab, screenshot] of [
   });
 }
 
-test('matches the approved Generate compose rhythm', async () => {
+test('matches the approved Refine compose rhythm', async () => {
   const session = visualSession('generate');
   session.activeRecordId = undefined;
   session.generateCompose = { original: '', goal: 'clearer', customGoal: '' };
   await seedState(visualAppData(), session);
 
-  await expect(page.getByRole('heading', { name: 'Generate a rewrite' })).toBeVisible();
-  const source = page.getByLabel('Content to rewrite');
+  await expect(page.getByRole('heading', { name: 'Refine your content' })).toBeVisible();
+  const source = page.getByLabel('Content to refine');
   const sourceLabel = page.locator('label[for="rewrite-source"]');
-  const goal = page.getByLabel('Rewrite goal');
+  const goal = page.getByLabel('Refinement goal');
   const goalLabel = page.locator('label[for="rewrite-goal"]');
-  const note = page.getByText('Uses your tone and writing profile from Settings.');
-  const submit = page.getByRole('button', { name: 'Generate rewrite' });
+  const note = page.getByText(
+    'Uses your tone, writing profile, style guide, and accepted preferences.',
+  );
+  const submit = page.getByRole('button', { name: 'Refine content' });
   const card = source.locator('..').locator('..');
 
   await expect(submit).toBeEnabled();
@@ -190,12 +194,17 @@ test('matches the approved Generate compose rhythm', async () => {
   await expect(page.getByRole('alert')).toContainText('Paste between 1 and 12,000 characters');
 });
 
-test('derives Generate copy and geometry from the approved prototype', async () => {
+test('derives Refine copy and geometry from the approved prototype', async () => {
   if (!context) throw new Error('Browser context unavailable');
   const reference = await approvedPrototype(root);
   const prototype = await context.newPage();
   await prototype.setViewportSize({ width: 400, height: 820 });
   await prototype.goto(`${pathToFileURL(reference.absolutePath).href}#generate`);
+  await prototype.locator('#scene-generate').evaluate((element) => {
+    if (!(element instanceof HTMLInputElement)) throw new Error('Refine control is unavailable.');
+    element.checked = true;
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   await prototype.evaluate(() => document.fonts.ready);
 
   const session = visualSession('generate');
@@ -211,12 +220,16 @@ test('derives Generate copy and geometry from the approved prototype', async () 
     )
     .allTextContents();
   const productionCopy = await Promise.all([
-    page.getByRole('heading', { name: 'Generate a rewrite' }).textContent(),
-    page.getByText('Paste text and reshape it in your saved voice.').textContent(),
+    page.getByRole('heading', { name: 'Refine your content' }).textContent(),
+    page
+      .getByText('Paste text and reshape it using your saved writing profile and voice.')
+      .textContent(),
     page.locator('label[for="rewrite-source"]').textContent(),
     page.locator('label[for="rewrite-goal"]').textContent(),
-    page.getByText('Uses your tone and writing profile from Settings.').textContent(),
-    page.getByRole('button', { name: 'Generate rewrite' }).textContent(),
+    page
+      .getByText('Uses your tone, writing profile, style guide, and accepted preferences.')
+      .textContent(),
+    page.getByRole('button', { name: 'Refine content' }).textContent(),
   ]);
   expect(productionCopy.map((value) => value?.trim())).toEqual(
     prototypeCopy.map((value) => value.trim()),
@@ -233,13 +246,15 @@ test('derives Generate copy and geometry from the approved prototype', async () 
       submit: prototypeCompose.locator('[data-generate-rewrite]'),
     }),
     formGeometry({
-      card: page.getByLabel('Content to rewrite').locator('..').locator('..'),
+      card: page.getByLabel('Content to refine').locator('..').locator('..'),
       sourceLabel: page.locator('label[for="rewrite-source"]'),
-      source: page.getByLabel('Content to rewrite'),
+      source: page.getByLabel('Content to refine'),
       goalLabel: page.locator('label[for="rewrite-goal"]'),
-      goal: page.getByLabel('Rewrite goal'),
-      note: page.getByText('Uses your tone and writing profile from Settings.'),
-      submit: page.getByRole('button', { name: 'Generate rewrite' }),
+      goal: page.getByLabel('Refinement goal'),
+      note: page.getByText(
+        'Uses your tone, writing profile, style guide, and accepted preferences.',
+      ),
+      submit: page.getByRole('button', { name: 'Refine content' }),
     }),
   ]);
   expect(productionGeometry).toEqual(prototypeGeometry);
@@ -380,6 +395,7 @@ test('explains every missing setup requirement', async () => {
 });
 
 test('requires confirmation before clearing History', async () => {
+  await reopenSidePanel();
   await seed('history');
   await page.getByRole('button', { name: 'Clear all', exact: true }).click();
   const confirmation = page.getByRole('alertdialog');
@@ -438,6 +454,14 @@ test('keeps every main view free of serious accessibility violations', async () 
   }
 });
 
+async function reopenSidePanel() {
+  await page.close();
+  if (!context) throw new Error('Extension browser context is unavailable.');
+  page = await context.newPage();
+  await page.setViewportSize({ width: 400, height: 820 });
+  await page.goto(sidePanelUrl);
+}
+
 async function seed(activeTab: 'reply' | 'generate' | 'idea' | 'history' | 'settings') {
   const app = visualAppData();
   if (activeTab !== 'history') {
@@ -487,6 +511,7 @@ async function resetSidePanelScroll() {
 }
 
 function title(value: string): string {
+  if (value === 'generate') return 'Refine';
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 

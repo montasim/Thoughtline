@@ -83,6 +83,9 @@ export const appSettingsSchema = z.object({
   retention: retentionPolicySchema,
   publicResearchEnabled: z.boolean(),
   selectedSources: z.array(sourceNameSchema).min(1).max(5),
+  contextRefinementEnabled: z.boolean().default(true),
+  retainRefinementSourceLink: z.boolean().default(true),
+  requireExperienceConfirmation: z.boolean().default(true),
   providerValidation: z.object({
     gemini: providerValidationSchema,
     groq: providerValidationSchema,
@@ -308,9 +311,29 @@ export type ReplyHistoryRecord = z.infer<typeof replyHistorySchema>;
 
 export const rewriteHistorySchema = historyBaseSchema.extend({
   type: z.literal('rewrite'),
+  mode: z.enum(['manual', 'context']).optional(),
   original: boundedText(12_000),
   goal: rewriteGoalSchema,
   customGoal: z.string().trim().max(600),
+  source: z
+    .object({
+      author: boundedText(160),
+      permalink: linkedInUrlSchema.optional(),
+      postExcerpt: boundedText(320),
+      wordCount: z.number().int().positive().max(20_000).optional(),
+      capturedAt: isoDateSchema,
+    })
+    .optional(),
+  experiencePerspective: z.string().trim().max(2_000).optional(),
+  retainSourceLink: z.boolean().optional(),
+  grounding: z
+    .object({
+      profile: boundedText(600),
+      tone: boundedText(600),
+      preferences: boundedText(2_000),
+      safeguards: z.array(boundedText(240)).max(8),
+    })
+    .optional(),
   generatedText: boundedText(12_000),
   currentText: boundedText(12_000),
   revisions: z.array(revisionSchema).max(30),
@@ -404,11 +427,68 @@ export const generateComposeSchema = z.object({
   customGoal: z.string().max(600),
 });
 
+export const refinementStageSchema = z.enum([
+  'checking-setup',
+  'extracting',
+  'validating',
+  'refining',
+  'saving',
+]);
+
+export const refinementStateSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('idle') }),
+  z.object({
+    status: z.literal('pending'),
+    requestId: uuidSchema,
+    tabId: z.number().int().positive(),
+    frameId: z.number().int().nonnegative().default(0),
+    requestedAt: isoDateSchema,
+  }),
+  z.object({
+    status: z.literal('running'),
+    requestId: uuidSchema,
+    tabId: z.number().int().positive(),
+    frameId: z.number().int().nonnegative().default(0),
+    stage: refinementStageSchema,
+    startedAt: isoDateSchema,
+  }),
+  z.object({
+    status: z.literal('review'),
+    requestId: uuidSchema,
+    tabId: z.number().int().positive(),
+    frameId: z.number().int().nonnegative().default(0),
+    context: postContextSchema,
+    experiencePerspective: z.string().max(2_000).default(''),
+    experienceConfirmed: z.boolean().default(false),
+    retainSourceLink: z.boolean(),
+    capturedAt: isoDateSchema,
+  }),
+  z.object({
+    status: z.literal('success'),
+    requestId: uuidSchema,
+    recordId: uuidSchema,
+    context: postContextSchema.optional(),
+    tabId: z.number().int().positive().optional(),
+    frameId: z.number().int().nonnegative().optional(),
+    experiencePerspective: z.string().max(2_000).optional(),
+    experienceConfirmed: z.boolean().optional(),
+    retainSourceLink: z.boolean().optional(),
+  }),
+  z.object({
+    status: z.literal('error'),
+    requestId: uuidSchema.optional(),
+    code: boundedText(80),
+    message: boundedText(800),
+  }),
+]);
+export type RefinementState = z.infer<typeof refinementStateSchema>;
+
 export const sessionStateSchema = z.object({
   activeTab: activeTabSchema,
   activeRecordId: uuidSchema.optional(),
   analysis: analysisStateSchema,
   calibration: calibrationRequestStateSchema.default({ status: 'idle' }),
+  refinement: refinementStateSchema.default({ status: 'idle' }),
   generateCompose: generateComposeSchema,
   ideaView: z.enum(['search', 'results', 'experience', 'post']),
   ideaSession: ideaSessionSchema.optional(),
@@ -464,6 +544,9 @@ export const defaultAppData: AppData = {
     retention: 'latest-20',
     publicResearchEnabled: false,
     selectedSources: ['hacker-news', 'dev', 'medium', 'lobsters', 'stack-overflow'],
+    contextRefinementEnabled: true,
+    retainRefinementSourceLink: true,
+    requireExperienceConfirmation: true,
     providerValidation: {
       gemini: { state: 'missing', credentialVersion: 0 },
       groq: { state: 'missing', credentialVersion: 0 },
@@ -497,6 +580,7 @@ export const defaultSessionState: SessionState = {
   activeTab: 'reply',
   analysis: { status: 'idle' },
   calibration: { status: 'idle' },
+  refinement: { status: 'idle' },
   generateCompose: { original: '', goal: 'clearer', customGoal: '' },
   ideaView: 'search',
   experienceLesson: '',

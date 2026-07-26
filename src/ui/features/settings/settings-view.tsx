@@ -170,6 +170,20 @@ export function SettingsView() {
     else await saveApp({ ...app, settings: { ...app.settings, retention } });
   };
 
+  const saveRefinementSettings = async (
+    patch: Partial<
+      Pick<
+        AppData['settings'],
+        'contextRefinementEnabled' | 'retainRefinementSourceLink' | 'requireExperienceConfirmation'
+      >
+    >,
+  ) => {
+    await saveApp({ ...app, settings: { ...app.settings, ...patch } });
+    if ('contextRefinementEnabled' in patch) {
+      await sendRuntimeMessage({ type: 'integration:sync' });
+    }
+  };
+
   const importProfile = (file: File) => {
     if (!ownershipConfirmed) return;
     void profileJob.run(async (signal) => {
@@ -359,6 +373,61 @@ export function SettingsView() {
               {app.settings.consent.accepted ? 'Revoke' : 'Allow'}
             </Button>
           </div>
+        </SettingsSection>
+
+        <SettingsSection
+          value="context-refinement"
+          title="Context-menu refinement"
+          subtitle={`${app.settings.contextRefinementEnabled ? 'Profile-grounded' : 'Hidden'} · ${app.settings.retainRefinementSourceLink ? 'source link kept' : 'source link optional'}`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <strong className="text-xs">Show “Refine the post to make your own”</strong>
+              <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
+                Available when you right-click inside a rendered LinkedIn post.
+              </p>
+            </div>
+            <SwitchControl
+              aria-label="Show context-menu post refinement"
+              checked={app.settings.contextRefinementEnabled}
+              onCheckedChange={(checked) =>
+                void saveRefinementSettings({ contextRefinementEnabled: checked })
+              }
+            />
+          </div>
+          <label className="flex cursor-pointer items-start gap-2 border-t border-rule pt-3 text-[10.5px] leading-relaxed text-muted">
+            <input
+              className="mt-0.5"
+              type="checkbox"
+              checked={app.settings.retainRefinementSourceLink}
+              onChange={(event) =>
+                void saveRefinementSettings({
+                  retainRefinementSourceLink: event.target.checked,
+                })
+              }
+            />
+            <span>Keep the original post link in refined drafts by default.</span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2 text-[10.5px] leading-relaxed text-muted">
+            <input
+              className="mt-0.5"
+              type="checkbox"
+              checked={app.settings.requireExperienceConfirmation}
+              onChange={(event) =>
+                void saveRefinementSettings({
+                  requireExperienceConfirmation: event.target.checked,
+                })
+              }
+            />
+            <span>
+              Require explicit confirmation before using an experience perspective or making a
+              personal claim.
+            </span>
+          </label>
+          <p className="rounded-lg border border-rule bg-soft p-3 text-[10.5px] leading-relaxed text-muted">
+            The action uses your current profile, tone, style guide, and accepted preferences. Every
+            draft stays editable and keeps its source provenance in History.
+          </p>
         </SettingsSection>
 
         <SettingsSection

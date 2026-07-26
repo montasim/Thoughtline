@@ -1,0 +1,3832 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Interactive Android prototype for Thoughtline's LinkedIn writing workflows."
+    />
+    <title>Thoughtline for Android — Prototype v1</title>
+    <style>
+      :root {
+        --stage: #e8edf2;
+        --phone: #f6f8fb;
+        --surface: #ffffff;
+        --surface-blue: #eef3f8;
+        --ink: #183048;
+        --muted: #5d6f82;
+        --primary: #315f91;
+        --primary-strong: #234a73;
+        --proof: #317872;
+        --proof-soft: #eaf5f2;
+        --warning: #8a5b13;
+        --warning-soft: #fff5df;
+        --danger: #a24040;
+        --line: #d2dde7;
+        --field: #aabac9;
+        --shadow: 0 30px 80px rgb(24 48 72 / 0.18);
+        --display: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif;
+        --body: Aptos, 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+        --utility: 'SFMono-Regular', 'Cascadia Mono', 'Roboto Mono', monospace;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 20px;
+        --space-6: 24px;
+        --space-8: 32px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-width: 320px;
+        min-height: 100%;
+        color: var(--ink);
+        background: var(--stage);
+        font-family: var(--body);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button,
+      summary {
+        cursor: pointer;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      a {
+        color: var(--proof);
+      }
+
+      :focus-visible {
+        outline: 3px solid #1680a5;
+        outline-offset: 2px;
+      }
+
+      .hidden,
+      [hidden] {
+        display: none !important;
+      }
+
+      .studio {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(250px, 350px) auto;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(var(--space-8), 5vw, 80px);
+        padding: var(--space-8);
+        background:
+          radial-gradient(circle at 78% 20%, rgb(49 120 114 / 0.11), transparent 31%),
+          linear-gradient(135deg, #edf1f5 0%, #e3e9ef 100%);
+      }
+
+      .prototype-notes {
+        max-width: 350px;
+      }
+
+      .prototype-kicker,
+      .eyebrow {
+        margin: 0;
+        color: var(--proof);
+        font-family: var(--utility);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .prototype-notes h1 {
+        max-width: 320px;
+        margin: var(--space-4) 0 var(--space-3);
+        font-family: var(--display);
+        font-size: clamp(34px, 4vw, 52px);
+        line-height: 0.98;
+        letter-spacing: -0.035em;
+      }
+
+      .prototype-notes > p:not(.prototype-kicker) {
+        margin: 0;
+        color: #52667a;
+        font-size: 14px;
+        line-height: 1.65;
+      }
+
+      .handoff-note {
+        margin-top: var(--space-6);
+        border-left: 3px solid var(--proof);
+        padding-left: var(--space-4);
+      }
+
+      .handoff-note strong {
+        display: block;
+        margin-bottom: var(--space-1);
+        font-family: var(--display);
+        font-size: 17px;
+      }
+
+      .handoff-note span {
+        display: block;
+        color: #607488;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .scenario-label {
+        margin: var(--space-6) 0 var(--space-2);
+        color: var(--muted);
+        font-family: var(--utility);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .scenario-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .scenario-button {
+        min-height: 38px;
+        border: 1px solid #bdcad6;
+        border-radius: 20px;
+        padding: 0 14px;
+        color: #38546f;
+        background: rgb(255 255 255 / 0.56);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .scenario-button:hover,
+      .scenario-button.active {
+        border-color: var(--primary);
+        color: #fff;
+        background: var(--primary);
+      }
+
+      .prototype-foot {
+        margin-top: var(--space-6) !important;
+        font-family: var(--utility);
+        font-size: 10px !important;
+      }
+
+      .device-wrap {
+        position: relative;
+      }
+
+      .device {
+        position: relative;
+        width: min(412px, calc(100vw - 28px));
+        height: min(892px, calc(100vh - 28px));
+        min-height: 640px;
+        overflow: hidden;
+        border: 8px solid #1e2c39;
+        border-radius: 42px;
+        background: var(--phone);
+        box-shadow: var(--shadow), inset 0 0 0 1px rgb(255 255 255 / 0.28);
+      }
+
+      .device::before {
+        position: absolute;
+        z-index: 50;
+        top: 10px;
+        left: 50%;
+        width: 72px;
+        height: 23px;
+        border-radius: 20px;
+        background: #15202b;
+        content: '';
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+
+      .android-app {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        overflow: hidden;
+        background: var(--phone);
+      }
+
+      .status-bar {
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 18px 0;
+        color: #263b4e;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+
+      .status-icons svg {
+        width: 14px;
+        height: 14px;
+        stroke-width: 2;
+      }
+
+      .app-bar {
+        min-height: 61px;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-4);
+        border-bottom: 1px solid rgb(210 221 231 / 0.82);
+        background: rgb(246 248 251 / 0.92);
+        backdrop-filter: blur(18px);
+      }
+
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid #c7d5e2;
+        border-radius: 12px;
+        background: #fff;
+      }
+
+      .brand-mark svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .app-title {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .app-title strong {
+        display: block;
+        font-family: var(--display);
+        font-size: 19px;
+        line-height: 1.05;
+      }
+
+      .app-title span {
+        display: block;
+        margin-top: var(--space-1);
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 10.5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .icon-button,
+      .action-button {
+        width: 44px;
+        height: 44px;
+        display: inline-grid;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid #bdcad7;
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .icon-button:hover,
+      .action-button:hover,
+      .icon-button.pressed,
+      .action-button.pressed {
+        border-color: #8bacbe;
+        color: var(--proof);
+        background: var(--proof-soft);
+      }
+
+      .icon-button svg,
+      .action-button svg,
+      .nav-button svg,
+      .button svg,
+      .source-icon svg {
+        width: 19px;
+        height: 19px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .app-content {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .screen {
+        height: 100%;
+        overflow-y: auto;
+        padding: var(--space-4) var(--space-4) var(--space-6);
+        scrollbar-color: #b7c4d0 transparent;
+        scrollbar-width: thin;
+      }
+
+      .screen.entering {
+        animation: screen-in 210ms ease-out;
+      }
+
+      @keyframes screen-in {
+        from {
+          opacity: 0.68;
+          transform: translateY(4px);
+        }
+      }
+
+      .page-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin-bottom: var(--space-4);
+      }
+
+      .page-heading h2 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 24px;
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+      }
+
+      .page-heading p {
+        margin: var(--space-1) 0 0;
+        color: var(--muted);
+        font-size: 11.5px;
+        line-height: 1.4;
+      }
+
+      .utility-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding-top: var(--space-1);
+        color: var(--proof);
+        font-family: var(--utility);
+        font-size: 9.5px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .utility-status::before {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--proof);
+        content: '';
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: 0 2px 8px rgb(24 48 72 / 0.025);
+      }
+
+      .source-packet {
+        position: relative;
+        margin: 0 0 var(--space-4);
+        padding: var(--space-4);
+      }
+
+      .source-packet::before,
+      .source-packet::after {
+        position: absolute;
+        z-index: -1;
+        inset: 5px -4px -5px 5px;
+        border: 1px solid #d9e2ea;
+        border-radius: 18px;
+        background: #eef3f8;
+        content: '';
+        transform: rotate(0.6deg);
+      }
+
+      .source-packet::after {
+        inset: 9px -2px -9px 9px;
+        z-index: -2;
+        background: #e5edf4;
+        transform: rotate(-0.7deg);
+      }
+
+      .source-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
+      .source-icon {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 12px;
+        color: white;
+        background: #0a66c2;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .source-copy {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .source-copy strong {
+        display: block;
+        font-size: 12px;
+      }
+
+      .source-copy span {
+        display: block;
+        margin-top: var(--space-1);
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+
+      .packet-badge,
+      .status-chip {
+        display: inline-flex;
+        min-height: 25px;
+        align-items: center;
+        gap: var(--space-1);
+        border: 1px solid #b8d6d0;
+        border-radius: 20px;
+        padding: 3px 9px;
+        color: var(--proof);
+        background: var(--proof-soft);
+        font-size: 9.5px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .packet-text {
+        margin: var(--space-3) 0 0;
+        color: #3d5368;
+        font-size: 11.5px;
+        line-height: 1.52;
+      }
+
+      .thread-card {
+        position: relative;
+        overflow: hidden;
+        padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
+      }
+
+      .thread-line {
+        position: absolute;
+        top: 23px;
+        bottom: 24px;
+        left: 12px;
+        width: 2px;
+        border-radius: 2px;
+        background: linear-gradient(var(--proof), #8ab8b2 72%, transparent);
+      }
+
+      .thread-node {
+        position: relative;
+        padding-bottom: var(--space-4);
+      }
+
+      .thread-node:last-child {
+        padding-bottom: 0;
+      }
+
+      .thread-node::before {
+        position: absolute;
+        top: 4px;
+        left: -17px;
+        width: 8px;
+        height: 8px;
+        border: 2px solid var(--surface);
+        border-radius: 50%;
+        background: var(--proof);
+        box-shadow: 0 0 0 1px var(--proof);
+        content: '';
+      }
+
+      .section-label {
+        margin: 0 0 var(--space-2);
+        color: var(--muted);
+        font-family: var(--utility);
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .summary-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+      }
+
+      .language-tabs,
+      .segmented {
+        display: grid;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 3px;
+        background: var(--surface-blue);
+      }
+
+      .language-tabs {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .language-tabs button,
+      .segmented button {
+        min-height: 32px;
+        border: 0;
+        border-radius: 9px;
+        padding: 0 10px;
+        color: #587087;
+        background: transparent;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .language-tabs button.active,
+      .segmented button.active {
+        color: var(--primary);
+        background: #fff;
+        box-shadow: 0 1px 4px rgb(24 48 72 / 0.1);
+      }
+
+      .summary-text {
+        margin: var(--space-3) 0 0;
+        color: #324b63;
+        font-size: 11.5px;
+        line-height: 1.52;
+      }
+
+      .review-note {
+        border: 1px solid #e8c77e;
+        border-radius: 12px;
+        padding: var(--space-3);
+        color: #775018;
+        background: var(--warning-soft);
+        font-size: 10.5px;
+        line-height: 1.45;
+      }
+
+      .segmented {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .segmented button {
+        min-width: 0;
+        padding: 0 3px;
+        font-size: 9.5px;
+      }
+
+      .editor-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        margin: var(--space-3) 0 var(--space-2);
+      }
+
+      .editor-heading strong {
+        font-size: 12px;
+      }
+
+      .editor-actions {
+        display: flex;
+        gap: var(--space-1);
+      }
+
+      .action-button {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+
+      .editor,
+      .field-input,
+      .field-select {
+        width: 100%;
+        border: 1px solid var(--field);
+        border-radius: 13px;
+        color: var(--ink);
+        background: #fff;
+      }
+
+      .editor {
+        min-height: 170px;
+        resize: vertical;
+        padding: var(--space-3);
+        font-size: 12px;
+        line-height: 1.53;
+      }
+
+      .editor.compact {
+        min-height: 125px;
+      }
+
+      .source-details {
+        margin-top: var(--space-3);
+        border-top: 1px solid var(--line);
+      }
+
+      .source-details summary,
+      .settings-section summary {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        list-style: none;
+        font-size: 11.5px;
+        font-weight: 700;
+      }
+
+      .source-details summary::-webkit-details-marker,
+      .settings-section summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .source-details summary::after,
+      .settings-section summary::after {
+        content: '⌄';
+        color: var(--muted);
+        font-size: 18px;
+        transform: translateY(-2px);
+      }
+
+      .source-details[open] summary::after,
+      .settings-section[open] summary::after {
+        transform: rotate(180deg) translateY(1px);
+      }
+
+      .detail-body {
+        padding: 0 0 4px;
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .bottom-nav {
+        position: relative;
+        z-index: 10;
+        min-height: 77px;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        padding: var(--space-2) var(--space-2) var(--space-3);
+        border-top: 1px solid var(--line);
+        background: rgb(250 252 254 / 0.96);
+        box-shadow: 0 -7px 24px rgb(24 48 72 / 0.06);
+        backdrop-filter: blur(18px);
+      }
+
+      .nav-button {
+        min-width: 0;
+        min-height: 56px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-1);
+        border: 0;
+        border-radius: 17px;
+        color: #5d6f82;
+        background: transparent;
+        font-size: 9.5px;
+        font-weight: 650;
+      }
+
+      .nav-button svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .nav-button.active {
+        color: var(--primary-strong);
+        background: #e2ebf4;
+      }
+
+      .fab {
+        position: absolute;
+        z-index: 15;
+        right: 18px;
+        bottom: 23px;
+        min-width: 58px;
+        height: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        border: 0;
+        border-radius: 19px;
+        padding: 0 17px;
+        color: #fff;
+        background: var(--primary);
+        box-shadow: 0 8px 22px rgb(49 95 145 / 0.3);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .fab svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      .button-row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--space-2);
+      }
+
+      .button {
+        min-height: 46px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        border: 1px solid var(--primary);
+        border-radius: 14px;
+        padding: 0 17px;
+        color: #fff;
+        background: var(--primary);
+        font-size: 11.5px;
+        font-weight: 700;
+      }
+
+      .button:hover {
+        background: var(--primary-strong);
+      }
+
+      .button.secondary {
+        color: var(--primary);
+        background: #fff;
+      }
+
+      .button.quiet {
+        border-color: transparent;
+        color: var(--muted);
+        background: transparent;
+      }
+
+      .button.danger {
+        border-color: rgb(162 64 64 / 0.38);
+        color: var(--danger);
+        background: #fff7f6;
+      }
+
+      .button.compact {
+        min-height: 39px;
+        border-radius: 12px;
+        padding: 0 12px;
+        font-size: 10.5px;
+      }
+
+      .button.full {
+        width: 100%;
+      }
+
+      .choice-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
+        margin-bottom: var(--space-3);
+      }
+
+      .choice-card {
+        min-height: 86px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: var(--space-3);
+        text-align: left;
+        background: var(--surface);
+      }
+
+      .choice-card.active {
+        border-color: var(--primary);
+        box-shadow: inset 0 0 0 1px var(--primary);
+        background: #f4f8fc;
+      }
+
+      .choice-card strong {
+        display: block;
+        font-size: 11.5px;
+      }
+
+      .choice-card span {
+        display: block;
+        margin-top: var(--space-1);
+        color: var(--muted);
+        font-size: 9.5px;
+        line-height: 1.4;
+      }
+
+      .form-card {
+        padding: var(--space-4);
+      }
+
+      .field {
+        margin-bottom: var(--space-3);
+      }
+
+      .field:last-child {
+        margin-bottom: 0;
+      }
+
+      .field label {
+        display: block;
+        margin-bottom: var(--space-2);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .field-input,
+      .field-select {
+        min-height: 48px;
+        padding: 0 12px;
+        font-size: 12px;
+      }
+
+      .result-header,
+      .idea-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        margin-bottom: var(--space-3);
+      }
+
+      .result-header strong,
+      .idea-header strong {
+        font-family: var(--display);
+        font-size: 18px;
+      }
+
+      .micro {
+        color: var(--muted);
+        font-size: 9.5px;
+        line-height: 1.5;
+      }
+
+      .idea-card {
+        position: relative;
+        margin-bottom: var(--space-3);
+        overflow: hidden;
+        padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+      }
+
+      .idea-card::before {
+        position: absolute;
+        top: 13px;
+        bottom: 13px;
+        left: 0;
+        width: 3px;
+        border-radius: 0 4px 4px 0;
+        background: var(--proof);
+        content: '';
+      }
+
+      .idea-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 9.5px;
+      }
+
+      .idea-card h3 {
+        margin: var(--space-3) 0 var(--space-2);
+        font-family: var(--display);
+        font-size: 18px;
+        line-height: 1.15;
+      }
+
+      .idea-card > p {
+        margin: 0;
+        color: #546a7e;
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .idea-reason {
+        margin-top: var(--space-3) !important;
+        color: #865924 !important;
+      }
+
+      .idea-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--line);
+      }
+
+      .source-link {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--proof);
+        font-size: 9.5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-actions {
+        display: flex;
+        gap: var(--space-1);
+      }
+
+      .mini-actions .action-button {
+        width: 37px;
+        height: 37px;
+      }
+
+      .history-tools {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 108px;
+        gap: var(--space-2);
+        margin-bottom: var(--space-3);
+      }
+
+      .history-item {
+        margin-bottom: var(--space-3);
+        overflow: hidden;
+      }
+
+      .history-summary {
+        min-height: 78px;
+        display: grid;
+        grid-template-columns: 37px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3);
+        list-style: none;
+      }
+
+      .history-summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .history-type {
+        width: 37px;
+        height: 37px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        color: var(--primary);
+        background: var(--surface-blue);
+      }
+
+      .history-type svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .history-copy {
+        min-width: 0;
+      }
+
+      .history-copy strong {
+        display: block;
+        overflow: hidden;
+        font-size: 11.5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .history-copy span {
+        display: block;
+        margin-top: var(--space-1);
+        color: var(--muted);
+        font-size: 9.5px;
+      }
+
+      .history-summary::after {
+        content: '⌄';
+        color: var(--muted);
+      }
+
+      .history-item[open] .history-summary::after {
+        transform: rotate(180deg);
+      }
+
+      .history-body {
+        padding: 0 var(--space-3) var(--space-3);
+        border-top: 1px solid var(--line);
+      }
+
+      .history-body textarea {
+        margin-top: var(--space-3);
+      }
+
+      .history-badge-row,
+      .saved-label-row,
+      .revision-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+      }
+
+      .history-badge-row {
+        margin: var(--space-3) 0 var(--space-2);
+      }
+
+      .history-badge {
+        display: inline-flex;
+        min-height: 24px;
+        align-items: center;
+        border-radius: 20px;
+        padding: 3px 9px;
+        color: var(--primary);
+        background: var(--surface-blue);
+        font-family: var(--utility);
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .history-record-title {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 17px;
+        line-height: 1.2;
+      }
+
+      .history-record-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-3);
+        margin: var(--space-2) 0 var(--space-3);
+        color: var(--muted);
+        font-size: 9.5px;
+      }
+
+      .saved-summary {
+        margin: var(--space-3) 0;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: var(--space-3);
+        background: #fbfcfe;
+      }
+
+      .saved-summary .summary-head strong {
+        font-size: 10.5px;
+      }
+
+      .history-version-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-top: var(--space-3);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 3px;
+        background: var(--surface-blue);
+      }
+
+      .history-version-tabs button {
+        min-width: 0;
+        min-height: 34px;
+        border: 0;
+        border-radius: 9px;
+        padding: 0 2px;
+        color: var(--muted);
+        background: transparent;
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .history-version-tabs button.active {
+        color: var(--primary);
+        background: #fff;
+        box-shadow: 0 1px 4px rgb(24 48 72 / 0.1);
+      }
+
+      .saved-label-row {
+        margin: var(--space-3) 0 var(--space-2);
+      }
+
+      .saved-label-row strong {
+        font-size: 11px;
+      }
+
+      .saved-label-row span {
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .saved-text {
+        min-height: 116px;
+        margin: 0;
+        border: 1px solid var(--field);
+        border-radius: 13px;
+        padding: var(--space-3);
+        white-space: pre-wrap;
+        color: #314a62;
+        background: #fff;
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .record-details {
+        margin-top: var(--space-2);
+        border-top: 1px solid var(--line);
+      }
+
+      .record-details summary {
+        min-height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        list-style: none;
+        font-size: 10.5px;
+        font-weight: 700;
+      }
+
+      .record-details summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .record-details summary::after {
+        content: '⌄';
+        color: var(--muted);
+      }
+
+      .record-details[open] summary::after {
+        transform: rotate(180deg);
+      }
+
+      .revision-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-2);
+        padding: var(--space-3) 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .revision-item:first-child {
+        border-top: 0;
+      }
+
+      .revision-meta {
+        justify-content: flex-start;
+        color: var(--proof);
+        font-family: var(--utility);
+        font-size: 8px;
+      }
+
+      .revision-item p {
+        margin: var(--space-1) 0 0;
+        color: var(--muted);
+        font-size: 9.5px;
+        line-height: 1.45;
+      }
+
+      .history-origin {
+        margin: var(--space-3) 0;
+        border-left: 3px solid var(--proof);
+        padding: var(--space-1) 0 var(--space-1) var(--space-3);
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+
+      .history-origin .caution {
+        color: var(--warning);
+      }
+
+      .empty-state,
+      .reply-state-card {
+        padding: var(--space-6) var(--space-4);
+        text-align: center;
+      }
+
+      .empty-state h3,
+      .reply-state-card h3 {
+        margin: var(--space-2) 0 var(--space-1);
+        font-family: var(--display);
+        font-size: 20px;
+      }
+
+      .empty-state p,
+      .reply-state-card p {
+        margin: 0 auto var(--space-4);
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .state-symbol {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        margin: 0 auto;
+        place-items: center;
+        border-radius: 14px;
+        color: var(--proof);
+        background: var(--proof-soft);
+        font-family: var(--display);
+        font-size: 23px;
+      }
+
+      .state-symbol.warning {
+        color: var(--warning);
+        background: var(--warning-soft);
+      }
+
+      .state-symbol.danger {
+        color: var(--danger);
+        background: #fff0ef;
+      }
+
+      .progress-ring {
+        width: 42px;
+        height: 42px;
+        margin: 0 auto;
+        border: 4px solid #dbe5ec;
+        border-top-color: var(--proof);
+        border-radius: 50%;
+        animation: spin 850ms linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .provider-note {
+        margin-bottom: var(--space-3);
+        border: 1px solid #e4c786;
+        border-radius: 13px;
+        padding: var(--space-3);
+        color: var(--warning);
+        background: var(--warning-soft);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+
+      .readiness-card {
+        margin-bottom: var(--space-3);
+        border-color: #add0ca;
+        padding: var(--space-4);
+        background: linear-gradient(145deg, #fff, var(--proof-soft));
+      }
+
+      .readiness-card h3 {
+        margin: var(--space-2) 0 var(--space-3);
+        font-family: var(--display);
+        font-size: 18px;
+      }
+
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .settings-section {
+        margin-bottom: var(--space-3);
+        overflow: hidden;
+        padding: 0 var(--space-4);
+      }
+
+      .settings-section summary {
+        min-height: 64px;
+      }
+
+      .settings-summary-copy {
+        min-width: 0;
+      }
+
+      .settings-summary-copy strong {
+        display: block;
+        font-family: var(--display);
+        font-size: 15px;
+      }
+
+      .settings-summary-copy span {
+        display: block;
+        margin-top: var(--space-1);
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 400;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .settings-body {
+        padding: 0 0 var(--space-4);
+        border-top: 1px solid var(--line);
+      }
+
+      .connection-row {
+        min-height: 64px;
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: var(--space-3);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .connection-row:last-child {
+        border-bottom: 0;
+      }
+
+      .connection-icon {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 11px;
+        color: #fff;
+        background: var(--primary);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .connection-icon svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      .connection-copy strong {
+        display: block;
+        font-size: 11px;
+      }
+
+      .connection-copy span {
+        display: block;
+        margin-top: var(--space-1);
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .connection-status {
+        color: var(--proof);
+        font-family: var(--utility);
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .switch-row,
+      .source-toggle {
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .switch-row:last-child,
+      .source-toggle:last-child {
+        border-bottom: 0;
+      }
+
+      .switch-copy strong {
+        display: block;
+        font-size: 10.5px;
+      }
+
+      .switch-copy span {
+        display: block;
+        margin-top: var(--space-1);
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .switch {
+        width: 43px;
+        height: 25px;
+        position: relative;
+        flex: 0 0 auto;
+      }
+
+      .switch input {
+        position: absolute;
+        opacity: 0;
+      }
+
+      .switch-track {
+        position: absolute;
+        inset: 0;
+        border-radius: 20px;
+        background: #b9c5d0;
+        transition: background 150ms ease;
+      }
+
+      .switch-track::after {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 19px;
+        height: 19px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgb(24 48 72 / 0.25);
+        content: '';
+        transition: transform 150ms ease;
+      }
+
+      .switch input:checked + .switch-track {
+        background: var(--proof);
+      }
+
+      .switch input:checked + .switch-track::after {
+        transform: translateX(18px);
+      }
+
+      .tone-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-2);
+      }
+
+      .tone-option {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: var(--space-2) var(--space-3);
+        font-size: 9.5px;
+      }
+
+      .tone-option:has(input:checked) {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: #f1f6fb;
+      }
+
+      .tone-option input,
+      .inline-check input {
+        accent-color: var(--proof);
+      }
+
+      .inline-check {
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        color: var(--muted);
+        font-size: 9.5px;
+      }
+
+      .settings-actions-stack {
+        display: grid;
+        gap: var(--space-2);
+        margin-top: var(--space-3);
+      }
+
+      .setup-progress {
+        display: flex;
+        gap: var(--space-1);
+        margin: var(--space-1) 0 var(--space-5);
+      }
+
+      .setup-progress span {
+        height: 4px;
+        flex: 1;
+        border-radius: 4px;
+        background: #dbe4ec;
+      }
+
+      .setup-progress span.done {
+        background: var(--proof);
+      }
+
+      .setup-hero {
+        margin: var(--space-4) 0;
+        text-align: center;
+      }
+
+      .setup-hero .brand-mark {
+        width: 62px;
+        height: 62px;
+        margin: 0 auto var(--space-4);
+        border-radius: 20px;
+        box-shadow: 0 8px 24px rgb(24 48 72 / 0.08);
+      }
+
+      .setup-hero .brand-mark svg {
+        width: 37px;
+        height: 37px;
+      }
+
+      .setup-hero h2 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 28px;
+        line-height: 1.05;
+      }
+
+      .setup-hero p {
+        margin: var(--space-2) auto 0;
+        max-width: 300px;
+        color: var(--muted);
+        font-size: 11.5px;
+        line-height: 1.5;
+      }
+
+      .setup-list {
+        margin: var(--space-4) 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .setup-list li {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: var(--space-3);
+        margin-bottom: var(--space-3);
+        color: #50677b;
+        font-size: 10.5px;
+        line-height: 1.45;
+      }
+
+      .setup-list b {
+        width: 25px;
+        height: 25px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        color: var(--proof);
+        background: var(--proof-soft);
+        font-family: var(--utility);
+        font-size: 9px;
+      }
+
+      .setup-step-panel {
+        animation: screen-in 180ms ease-out;
+      }
+
+      .setup-step-heading {
+        margin: 0 0 var(--space-2);
+        font-family: var(--display);
+        font-size: 22px;
+      }
+
+      .setup-step-copy {
+        margin: 0 0 var(--space-4);
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .checkbox-row {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: var(--space-3);
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: var(--space-3);
+        color: #50677b;
+        background: #fff;
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .checkbox-row input {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--proof);
+      }
+
+      .scrim {
+        position: absolute;
+        z-index: 80;
+        inset: 0;
+        display: grid;
+        align-items: end;
+        background: rgb(18 31 43 / 0.48);
+        backdrop-filter: blur(2px);
+      }
+
+      .bottom-sheet {
+        max-height: 82%;
+        overflow-y: auto;
+        border-radius: 26px 26px 0 0;
+        padding: var(--space-2) var(--space-4) var(--space-6);
+        background: var(--phone);
+        animation: sheet-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      @keyframes sheet-in {
+        from {
+          transform: translateY(30px);
+          opacity: 0;
+        }
+      }
+
+      .sheet-handle {
+        width: 42px;
+        height: 4px;
+        margin: 0 auto var(--space-4);
+        border-radius: 4px;
+        background: #aebcc8;
+      }
+
+      .bottom-sheet h3 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 22px;
+      }
+
+      .bottom-sheet > p {
+        margin: var(--space-2) 0 var(--space-4);
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .shared-preview {
+        margin-bottom: var(--space-3);
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        padding: var(--space-3);
+        background: #fff;
+      }
+
+      .shared-preview strong {
+        display: block;
+        font-size: 11px;
+      }
+
+      .shared-preview p {
+        margin: var(--space-2) 0 0;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+
+      .dialog {
+        align-self: center;
+        max-height: calc(100% - 36px);
+        overflow-y: auto;
+        margin: var(--space-4);
+        border-radius: 22px;
+        padding: var(--space-5);
+        background: #fff;
+        box-shadow: 0 18px 45px rgb(0 0 0 / 0.2);
+        animation: dialog-in 180ms ease-out;
+      }
+
+      @keyframes dialog-in {
+        from {
+          opacity: 0;
+          transform: scale(0.97) translateY(5px);
+        }
+      }
+
+      .dialog h3 {
+        margin: 0;
+        font-family: var(--display);
+        font-size: 21px;
+      }
+
+      .dialog p {
+        margin: var(--space-2) 0 var(--space-4);
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+
+      .schedule-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
+      }
+
+      .toast {
+        position: absolute;
+        z-index: 100;
+        right: 18px;
+        bottom: 91px;
+        left: 18px;
+        min-height: 49px;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        border-radius: 15px;
+        padding: 0 var(--space-4);
+        color: #fff;
+        background: #23394d;
+        box-shadow: 0 10px 30px rgb(24 48 72 / 0.24);
+        font-size: 11px;
+        animation: toast-in 180ms ease-out;
+      }
+
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      @media (max-width: 860px) {
+        .studio {
+          display: block;
+          padding: 0;
+          background: var(--phone);
+        }
+
+        .prototype-notes {
+          display: none;
+        }
+
+        .device {
+          width: 100vw;
+          height: 100dvh;
+          min-height: 620px;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+
+        .device::before {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg aria-hidden="true" width="0" height="0" style="position: absolute">
+      <symbol id="i-share" viewBox="0 0 24 24">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path>
+      </symbol>
+      <symbol id="i-message" viewBox="0 0 24 24">
+        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"></path>
+        <path d="M8 9h8M8 13h5"></path>
+      </symbol>
+      <symbol id="i-wand" viewBox="0 0 24 24">
+        <path d="m15 4 5 5L9 20H4v-5Z"></path>
+        <path d="m13 6 5 5M5 3v4M3 5h4M19 16v5M16.5 18.5h5"></path>
+      </symbol>
+      <symbol id="i-bulb" viewBox="0 0 24 24">
+        <path d="M9 18h6M10 22h4M8.5 15.5A7 7 0 1 1 15.5 15.5L15 17H9Z"></path>
+      </symbol>
+      <symbol id="i-history" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+        <path d="M3 3v5h5M12 7v5l3 2"></path>
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a2 2 0 0 0 .4 2.2l.1.1-2.6 2.6-.1-.1a2 2 0 0 0-2.2-.4 2 2 0 0 0-1.2 1.8V21h-3.6v-.2A2 2 0 0 0 9 19a2 2 0 0 0-2.2.4l-.1.1-2.6-2.6.1-.1A2 2 0 0 0 4.6 15a2 2 0 0 0-1.8-1.2H2v-3.6h.8A2 2 0 0 0 4.6 9a2 2 0 0 0-.4-2.2l-.1-.1 2.6-2.6.1.1A2 2 0 0 0 9 4.6a2 2 0 0 0 1.2-1.8V2h3.6v.8A2 2 0 0 0 15 4.6a2 2 0 0 0 2.2-.4l.1-.1 2.6 2.6-.1.1a2 2 0 0 0-.4 2.2 2 2 0 0 0 1.8 1.2h.8v3.6h-.8A2 2 0 0 0 19.4 15Z"></path>
+      </symbol>
+      <symbol id="i-more" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1"></circle>
+        <circle cx="12" cy="12" r="1"></circle>
+        <circle cx="19" cy="12" r="1"></circle>
+      </symbol>
+      <symbol id="i-thumb-up" viewBox="0 0 24 24">
+        <path d="M7 10v10H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h3Z"></path>
+        <path d="M7 20h9a2 2 0 0 0 2-1.5l1.5-6A2 2 0 0 0 17.6 10H14l.7-3.1A2.4 2.4 0 0 0 12.3 4L7 10"></path>
+      </symbol>
+      <symbol id="i-thumb-down" viewBox="0 0 24 24">
+        <path d="M7 14V4H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h3Z"></path>
+        <path d="M7 4h9a2 2 0 0 1 2 1.5l1.5 6A2 2 0 0 1 17.6 14H14l.7 3.1a2.4 2.4 0 0 1-2.4 2.9L7 14"></path>
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path d="M20 11a8 8 0 1 0-2.3 5.7"></path>
+        <path d="M20 4v7h-7"></path>
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="8" y="8" width="11" height="11" rx="2"></rect>
+        <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-4-4"></path>
+      </symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24">
+        <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+        <path d="M16 3v4M8 3v4M3 10h18"></path>
+      </symbol>
+      <symbol id="i-file" viewBox="0 0 24 24">
+        <path d="M5 2h9l5 5v15H5Z"></path>
+        <path d="M14 2v6h6M8 13h8M8 17h6"></path>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="m5 12 4 4L19 6"></path>
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14"></path>
+      </symbol>
+    </svg>
+
+    <main class="studio">
+      <aside class="prototype-notes">
+        <p class="prototype-kicker">Android prototype · v1</p>
+        <h1>Carry the thought, not the feed.</h1>
+        <p>
+          Thoughtline arrives through Android’s Share sheet, turns the shared source into a
+          reviewable context packet, and keeps every draft editable and manual.
+        </p>
+        <div class="handoff-note">
+          <strong>Mobile-native handoff</strong>
+          <span>
+            LinkedIn stays outside the app. Thoughtline receives only what the person explicitly
+            shares or pastes—never private in-app page content.
+          </span>
+        </div>
+        <p class="scenario-label">Jump to scenario</p>
+        <div class="scenario-row" aria-label="Prototype scenarios">
+          <button class="scenario-button active" type="button" data-scenario="reply">
+            Shared reply
+          </button>
+          <button class="scenario-button" type="button" data-scenario="share">
+            Share handoff
+          </button>
+          <button class="scenario-button" type="button" data-scenario="setup">First setup</button>
+          <button class="scenario-button" type="button" data-scenario="idea">Idea research</button>
+        </div>
+        <p class="prototype-foot">412 × 892 reference device · interactive prototype</p>
+      </aside>
+
+      <div class="device-wrap">
+        <section class="device" aria-label="Thoughtline Android app prototype">
+          <div class="android-app">
+            <header>
+              <div class="status-bar" aria-label="Android status bar">
+                <span>9:41</span>
+                <span class="status-icons">
+                  <svg viewBox="0 0 24 24"><path d="M4 16h2M8 13h2v3M12 10h2v6M16 7h2v9"></path></svg>
+                  <svg viewBox="0 0 24 24"><path d="M5 10a10 10 0 0 1 14 0M8 13a6 6 0 0 1 8 0M11 16a2 2 0 0 1 2 0"></path></svg>
+                  <svg viewBox="0 0 24 24"><rect x="3" y="7" width="17" height="10" rx="2"></rect><path d="M22 10v4M6 10h9v4H6Z"></path></svg>
+                </span>
+              </div>
+              <div class="app-bar" data-app-bar>
+                <span class="brand-mark" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 2.5a9 9 0 0 1 7.2 14.4A9 9 0 0 1 7 18.5L3.8 21l.9-4.2A9 9 0 0 1 12 2.5Z" fill="#315f91"></path>
+                    <path d="m12 5.2 4.1 5.8-4.1 7.2L7.9 11 12 5.2Z" fill="#fff"></path>
+                    <circle cx="12" cy="11.8" r="1.1" fill="#315f91"></circle>
+                    <path d="M12 12.9v3.2" stroke="#315f91" stroke-width="1.4" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <span class="app-title">
+                  <strong>Thoughtline</strong>
+                  <span data-app-subtitle>Shared from LinkedIn · just now</span>
+                </span>
+                <button class="icon-button" type="button" aria-label="More options" data-open-dialog="more">
+                  <svg><use href="#i-more"></use></svg>
+                </button>
+              </div>
+            </header>
+
+            <div class="app-content">
+              <section class="screen" data-screen="reply">
+                <div class="hidden" data-reply-state="ready">
+                  <div class="page-heading">
+                    <div>
+                      <h2>Write a reply</h2>
+                      <p>Start from the LinkedIn content you choose.</p>
+                    </div>
+                  </div>
+                  <article class="card reply-state-card">
+                    <span class="state-symbol">↗</span>
+                    <h3>Share a LinkedIn post</h3>
+                    <p>
+                      In LinkedIn, tap Share and choose Thoughtline. You can review the exact text
+                      and link before anything is sent for drafting.
+                    </p>
+                    <button class="button" type="button" data-open-share>Review sample share</button>
+                  </article>
+                </div>
+
+                <div class="hidden" data-reply-state="setup">
+                  <div class="page-heading">
+                    <div>
+                      <h2>Finish setup first</h2>
+                      <p>Three essentials need attention.</p>
+                    </div>
+                  </div>
+                  <article class="card form-card">
+                    <p class="eyebrow">Setup checklist</p>
+                    <div class="connection-row">
+                      <span class="connection-icon">1</span>
+                      <span class="connection-copy">
+                        <strong>AI processing consent</strong>
+                        <span>Review terms and allow new AI work</span>
+                      </span>
+                      <span class="connection-status">NEEDED</span>
+                    </div>
+                    <div class="connection-row">
+                      <span class="connection-icon">2</span>
+                      <span class="connection-copy">
+                        <strong>AI services</strong>
+                        <span>Validate Gemini and Groq keys</span>
+                      </span>
+                      <span class="connection-status">NEEDED</span>
+                    </div>
+                    <div class="connection-row">
+                      <span class="connection-icon">3</span>
+                      <span class="connection-copy">
+                        <strong>Writing profile</strong>
+                        <span>Add role, topics and audience</span>
+                      </span>
+                      <span class="connection-status">NEEDED</span>
+                    </div>
+                    <button class="button full" type="button" data-go-setup>Continue setup</button>
+                  </article>
+                </div>
+
+                <div class="hidden" data-reply-state="loading">
+                  <div class="page-heading">
+                    <div>
+                      <h2>Analyzing the conversation</h2>
+                      <p>Keep Thoughtline open while four directions are created.</p>
+                    </div>
+                    <span class="utility-status">Working</span>
+                  </div>
+                  <article class="card reply-state-card">
+                    <div class="progress-ring" aria-hidden="true"></div>
+                    <h3>Creating four reply directions</h3>
+                    <p>Shared source reviewed · context validated · Gemini drafting</p>
+                    <button class="button secondary" type="button" data-reply-state-target="ready">
+                      Cancel
+                    </button>
+                  </article>
+                </div>
+
+                <div class="hidden" data-reply-state="no-source">
+                  <div class="page-heading">
+                    <div>
+                      <h2>No usable source found</h2>
+                      <p>The Android share did not include readable post text.</p>
+                    </div>
+                  </div>
+                  <article class="card reply-state-card">
+                    <span class="state-symbol warning">!</span>
+                    <h3>Add the visible post text</h3>
+                    <p>
+                      Share the post again, or paste only the visible content you want Thoughtline
+                      to consider.
+                    </p>
+                    <button class="button secondary" type="button" data-open-share>Try again</button>
+                  </article>
+                </div>
+
+                <div class="hidden" data-reply-state="api-key">
+                  <div class="page-heading">
+                    <div>
+                      <h2>Connection needs attention</h2>
+                      <p>The shared source was not sent for drafting.</p>
+                    </div>
+                  </div>
+                  <article class="card reply-state-card">
+                    <span class="state-symbol danger">×</span>
+                    <h3>Gemini rejected the API key</h3>
+                    <p>Review the saved Gemini key, then check both provider connections.</p>
+                    <button class="button" type="button" data-go-settings>Review API keys</button>
+                  </article>
+                </div>
+
+                <div class="hidden" data-reply-state="provider-limit">
+                  <div class="page-heading">
+                    <div>
+                      <h2>Provider is busy</h2>
+                      <p>Your shared source remains only in this app session.</p>
+                    </div>
+                  </div>
+                  <article class="card reply-state-card">
+                    <span class="state-symbol warning">!</span>
+                    <h3>Drafting limit reached</h3>
+                    <p>Gemini and the one Groq fallback could not complete this request.</p>
+                    <button class="button secondary" type="button" data-reply-state-target="loading">
+                      Try again
+                    </button>
+                  </article>
+                </div>
+
+                <div class="hidden" data-reply-state="fallback">
+                  <div class="page-heading">
+                    <div>
+                      <h2>Replies recovered</h2>
+                      <p>The primary provider stopped, but the backup completed the draft set.</p>
+                    </div>
+                    <span class="utility-status">4 ready</span>
+                  </div>
+                  <div class="provider-note">
+                    <strong>Gemini was unavailable.</strong> Groq created all four directions. The
+                    provider change is recorded in History.
+                  </div>
+                  <article class="card reply-state-card">
+                    <span class="state-symbol">✓</span>
+                    <h3>Nothing was lost</h3>
+                    <p>Four independent drafts and the bilingual analysis summary are ready.</p>
+                    <button class="button" type="button" data-reply-state-target="success">
+                      Review four replies
+                    </button>
+                  </article>
+                </div>
+
+                <div data-reply-state="success">
+                  <div class="page-heading">
+                    <div>
+                      <h2>Reply to Maya</h2>
+                      <p>One shared post · context reviewed</p>
+                    </div>
+                    <span class="utility-status">4 ready</span>
+                  </div>
+
+                  <article class="card source-packet">
+                    <div class="source-row">
+                      <span class="source-icon">in</span>
+                      <span class="source-copy">
+                        <strong>Maya Chen’s LinkedIn post</strong>
+                        <span>53 words · shared by you</span>
+                      </span>
+                      <span class="packet-badge">Reviewed</span>
+                    </div>
+                    <p class="packet-text">
+                      “Teams reach for architecture patterns before constraints are clear, then
+                      keep defending those choices after the context changes.”
+                    </p>
+                  </article>
+
+                  <article class="card thread-card">
+                  <span class="thread-line" aria-hidden="true"></span>
+                  <section class="thread-node">
+                    <div class="summary-head">
+                      <p class="section-label">What the post says</p>
+                      <div class="language-tabs" aria-label="Summary language">
+                        <button class="active" type="button" data-language="english">English</button>
+                        <button type="button" data-language="bangla">বাংলা</button>
+                      </div>
+                    </div>
+                    <p class="summary-text" data-summary="english">
+                      The author argues that teams adopt architecture patterns before constraints
+                      are clear, then defend those choices after the context changes.
+                    </p>
+                    <p class="summary-text hidden" data-summary="bangla" lang="bn">
+                      লেখক বলছেন, দলগুলো সীমাবদ্ধতা পরিষ্কার হওয়ার আগেই আর্কিটেকচার প্যাটার্ন বেছে
+                      নেয় এবং প্রেক্ষাপট বদলালেও সেই সিদ্ধান্ত আঁকড়ে ধরে।
+                    </p>
+                  </section>
+
+                  <section class="thread-node">
+                    <p class="section-label">Gap to review</p>
+                    <div class="review-note">
+                      The shared context does not say how long this architecture is expected to
+                      last. Check the original before posting.
+                    </div>
+                  </section>
+
+                  <section class="thread-node">
+                    <p class="section-label">Choose a direction</p>
+                    <div class="segmented" role="tablist" aria-label="Reply directions">
+                      <button class="active" type="button" role="tab" data-direction="insight">Insight</button>
+                      <button type="button" role="tab" data-direction="question">Question</button>
+                      <button type="button" role="tab" data-direction="extend">Extend</button>
+                      <button type="button" role="tab" data-direction="challenge">Challenge</button>
+                    </div>
+                    <div class="editor-heading">
+                      <strong>Editable reply</strong>
+                      <div class="editor-actions" aria-label="Reply actions">
+                        <button class="action-button" type="button" aria-label="Good reply" data-rate>
+                          <svg><use href="#i-thumb-up"></use></svg>
+                        </button>
+                        <button class="action-button" type="button" aria-label="Needs improvement" data-rate>
+                          <svg><use href="#i-thumb-down"></use></svg>
+                        </button>
+                        <button class="action-button" type="button" aria-label="Regenerate reply" data-regenerate>
+                          <svg><use href="#i-refresh"></use></svg>
+                        </button>
+                        <button class="action-button" type="button" aria-label="Copy reply" data-copy="Reply copied">
+                          <svg><use href="#i-copy"></use></svg>
+                        </button>
+                      </div>
+                    </div>
+                    <textarea class="editor" aria-label="Editable reply" data-reply-editor>A useful way to frame this is that architecture decisions rarely fail because a team chose the “wrong” pattern. They fail when the assumptions behind that choice remain invisible.
+
+Writing down the constraint, expected lifetime, and reversal cost makes the decision easier to revisit without turning it into a debate about personal preference.</textarea>
+                    <details class="source-details">
+                      <summary>Source and reasoning</summary>
+                      <div class="detail-body">
+                        <strong>Source:</strong> Maya Chen’s shared LinkedIn post.<br />
+                        <strong>Approach:</strong> Surface the hidden assumptions behind an
+                        architecture decision without disagreeing with the author.
+                      </div>
+                    </details>
+                  </section>
+                  </article>
+                </div>
+              </section>
+
+              <section class="screen hidden" data-screen="generate">
+                <div data-generate-compose>
+                  <div class="page-heading">
+                    <div>
+                      <h2>Generate a rewrite</h2>
+                      <p>Paste text and reshape it in your saved voice.</p>
+                    </div>
+                  </div>
+                  <div class="choice-grid" aria-label="Rewrite goal">
+                    <button class="choice-card active" type="button">
+                      <strong>Make it clearer</strong>
+                      <span>Keep the meaning, remove friction.</span>
+                    </button>
+                    <button class="choice-card" type="button">
+                      <strong>Make it shorter</strong>
+                      <span>Preserve the point in fewer words.</span>
+                    </button>
+                    <button class="choice-card" type="button">
+                      <strong>More conversational</strong>
+                      <span>Sound natural, not casual.</span>
+                    </button>
+                    <button class="choice-card" type="button">
+                      <strong>Add useful detail</strong>
+                      <span>Expand the point without inventing facts.</span>
+                    </button>
+                  </div>
+                  <div class="card form-card">
+                    <div class="field">
+                      <label for="rewrite-source">Content to rewrite</label>
+                      <textarea id="rewrite-source" class="editor" placeholder="Paste a paragraph, draft, note or post here.">We implemented a new migration process and it helped reduce the risks for the whole deployment by making it possible to validate each stage before continuing to the next one.</textarea>
+                    </div>
+                    <p class="micro">Uses your tone and writing profile from Settings.</p>
+                    <p class="review-note hidden" role="alert" data-generate-error>
+                      Paste some content before generating a rewrite.
+                    </p>
+                    <button class="button full" type="button" data-create-rewrite>
+                      <svg><use href="#i-wand"></use></svg>
+                      Create rewrite
+                    </button>
+                  </div>
+                </div>
+
+                <div class="hidden" data-generate-result>
+                  <div class="page-heading">
+                    <div>
+                      <h2>Your rewrite</h2>
+                      <p>Clearer · saved voice</p>
+                    </div>
+                    <button class="button secondary" type="button" data-edit-source>Edit source</button>
+                  </div>
+                  <article class="card thread-card">
+                    <span class="thread-line" aria-hidden="true"></span>
+                    <section class="thread-node">
+                      <p class="section-label">Original</p>
+                      <p class="summary-text">
+                        We implemented a new migration process and it helped reduce the risks for
+                        the whole deployment...
+                      </p>
+                    </section>
+                    <section class="thread-node">
+                      <div class="editor-heading">
+                        <strong>Editable rewrite</strong>
+                        <div class="editor-actions">
+                          <button class="action-button" type="button" data-rate aria-label="Useful rewrite">
+                            <svg><use href="#i-thumb-up"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-rate aria-label="Rewrite needs improvement">
+                            <svg><use href="#i-thumb-down"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-regenerate aria-label="Regenerate rewrite">
+                            <svg><use href="#i-refresh"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-copy="Rewrite copied" aria-label="Copy rewrite">
+                            <svg><use href="#i-copy"></use></svg>
+                          </button>
+                        </div>
+                      </div>
+                      <textarea class="editor compact" aria-label="Editable rewrite">We reduced deployment risk by validating each stage of the migration before moving to the next.</textarea>
+                    </section>
+                  </article>
+                </div>
+              </section>
+
+              <section class="screen hidden" data-screen="idea">
+                <div class="hidden" data-idea-loading>
+                  <div class="page-heading">
+                    <div>
+                      <h2>Finding post ideas</h2>
+                      <p>Searching the public sources you enabled.</p>
+                    </div>
+                    <span class="utility-status">Working</span>
+                  </div>
+                  <article class="card reply-state-card">
+                    <div class="progress-ring" aria-hidden="true"></div>
+                    <h3>Looking for strong matches</h3>
+                    <p>Hacker News · DEV · Medium · Lobsters · Stack Overflow</p>
+                    <button class="button secondary" type="button" data-show-ideas>Cancel</button>
+                  </article>
+                </div>
+
+                <div data-idea-list>
+                  <div class="page-heading">
+                    <div>
+                      <h2>2 ideas found</h2>
+                      <p>Source-native evidence only</p>
+                    </div>
+                    <div class="button-row">
+                      <button class="button secondary compact" type="button" data-open-dialog="schedule">
+                        <svg><use href="#i-calendar"></use></svg>
+                        Schedule
+                      </button>
+                      <button class="button secondary compact" type="button" data-new-idea-search>
+                        New
+                      </button>
+                    </div>
+                  </div>
+                  <article class="card idea-card">
+                    <div class="idea-meta">
+                      <span class="status-chip">Strong fit</span>
+                      <span>DEV</span>
+                    </div>
+                    <h3>Runtime boundaries matter more than adding TypeScript types everywhere</h3>
+                    <p>
+                      This fits your systems perspective and gives engineering leaders a concrete
+                      way to prioritize validation work.
+                    </p>
+                    <p class="idea-reason">
+                      Best if you add one example of a trust boundary your team prioritized.
+                    </p>
+                    <div class="idea-actions">
+                      <span class="source-link">Source: TypeScript Patterns for Production AI Apps ↗</span>
+                      <span class="mini-actions">
+                        <button class="action-button" type="button" data-rate aria-label="Useful idea">
+                          <svg><use href="#i-thumb-up"></use></svg>
+                        </button>
+                        <button class="action-button" type="button" data-rate aria-label="Not useful">
+                          <svg><use href="#i-thumb-down"></use></svg>
+                        </button>
+                        <button class="action-button" type="button" data-create-post aria-label="Create post">
+                          <svg><use href="#i-wand"></use></svg>
+                        </button>
+                      </span>
+                    </div>
+                  </article>
+                  <article class="card idea-card">
+                    <div class="idea-meta">
+                      <span class="status-chip">Good fit</span>
+                      <span>Hacker News</span>
+                    </div>
+                    <h3>Migration reviews work better when teams rank risk before tools</h3>
+                    <p>
+                      A practical angle on sequencing architecture work around reversibility and
+                      business impact.
+                    </p>
+                    <div class="idea-actions">
+                      <span class="source-link">Source: Lessons from a zero-downtime migration ↗</span>
+                      <span class="mini-actions">
+                        <button class="action-button" type="button" data-rate aria-label="Useful idea">
+                          <svg><use href="#i-thumb-up"></use></svg>
+                        </button>
+                        <button class="action-button" type="button" data-rate aria-label="Not useful">
+                          <svg><use href="#i-thumb-down"></use></svg>
+                        </button>
+                        <button class="action-button" type="button" data-create-post aria-label="Create post">
+                          <svg><use href="#i-wand"></use></svg>
+                        </button>
+                      </span>
+                    </div>
+                  </article>
+                  <button class="button secondary full" type="button" data-show-idea-fallback>
+                    Write from my experience
+                  </button>
+                </div>
+
+                <div class="hidden" data-idea-fallback>
+                  <div class="page-heading">
+                    <div>
+                      <h2>One useful path</h2>
+                      <p>Start with a real lesson instead of forcing a weak source.</p>
+                    </div>
+                  </div>
+                  <article class="card form-card">
+                    <span class="status-chip">From your experience</span>
+                    <h3 class="history-record-title" style="margin-top: var(--space-3)">
+                      Turn a lesson you know into an evergreen post
+                    </h3>
+                    <p class="micro">
+                      Thoughtline will not invent an experience for you. Add what happened, what
+                      you learned, and who it could help.
+                    </p>
+                    <div class="field">
+                      <label for="experience-lesson">What is one lesson you learned the hard way?</label>
+                      <textarea id="experience-lesson" class="editor compact" placeholder="Example: We added validation everywhere, but the costly failures still came from two external integrations."></textarea>
+                    </div>
+                    <button class="button full" type="button" data-create-experience-post>
+                      Create evergreen post
+                    </button>
+                  </article>
+                  <div class="button-row" style="margin-top: var(--space-3)">
+                    <button class="button secondary" type="button" data-new-idea-search>
+                      Search again
+                    </button>
+                    <button class="button quiet" type="button" data-go-settings>Adjust topics</button>
+                  </div>
+                </div>
+
+                <div class="hidden" data-idea-post>
+                  <div class="page-heading">
+                    <div>
+                      <h2>Your post</h2>
+                      <p>Edit the wording until it sounds like you.</p>
+                    </div>
+                    <button class="button secondary" type="button" data-back-to-ideas>Back</button>
+                  </div>
+                  <article class="card thread-card">
+                    <span class="thread-line" aria-hidden="true"></span>
+                    <section class="thread-node">
+                      <p class="section-label">Source idea</p>
+                      <p class="summary-text">
+                        Runtime boundaries matter more than adding TypeScript types everywhere.
+                      </p>
+                    </section>
+                    <section class="thread-node">
+                      <div class="summary-head">
+                        <p class="section-label">LinkedIn post summary</p>
+                        <div class="language-tabs">
+                          <button class="active" type="button" data-post-language="english">English</button>
+                          <button type="button" data-post-language="bangla">বাংলা</button>
+                        </div>
+                      </div>
+                      <p class="summary-text" data-post-summary="english">
+                        This post argues that runtime validation should focus on risky trust
+                        boundaries, starting with external inputs and cross-service messages.
+                      </p>
+                      <p class="summary-text hidden" data-post-summary="bangla" lang="bn">
+                        এই পোস্টে বলা হয়েছে, রানটাইম ভ্যালিডেশন ঝুঁকিপূর্ণ ট্রাস্ট বাউন্ডারিতে
+                        গুরুত্ব দেওয়া উচিত—বিশেষ করে বাহ্যিক ইনপুট ও সার্ভিসের মধ্যকার মেসেজে।
+                      </p>
+                    </section>
+                    <section class="thread-node">
+                      <div class="editor-heading">
+                        <strong>Editable post</strong>
+                        <div class="editor-actions">
+                          <button class="action-button" type="button" data-rate aria-label="Useful post">
+                            <svg><use href="#i-thumb-up"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-rate aria-label="Post needs improvement">
+                            <svg><use href="#i-thumb-down"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-regenerate aria-label="Regenerate post">
+                            <svg><use href="#i-refresh"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-copy="Post copied" aria-label="Copy post">
+                            <svg><use href="#i-copy"></use></svg>
+                          </button>
+                        </div>
+                      </div>
+                      <textarea class="editor" aria-label="Editable post">TypeScript can prove a lot inside your codebase. It cannot prove that data arriving from outside is safe.
+
+That distinction changes how I review production systems.
+
+I start with the boundaries: API responses, stored records, generated output, imported files. Validate there first. Add internal types second.
+
+The goal is not maximum type coverage. It is making the moments where trust changes impossible to miss.</textarea>
+                      <details class="source-details" open>
+                        <summary>Source and writing direction</summary>
+                        <div class="detail-body">
+                          <strong>Source:</strong> TypeScript Patterns for Production AI Apps on
+                          DEV.<br />
+                          <strong>Direction:</strong> Turn the source into a boundary-first decision
+                          framework without copying its wording.
+                        </div>
+                      </details>
+                    </section>
+                  </article>
+                </div>
+
+                <div class="hidden" data-experience-post>
+                  <div class="page-heading">
+                    <div>
+                      <h2>Your post</h2>
+                      <p>From your experience · editable</p>
+                    </div>
+                    <button class="button secondary" type="button" data-back-to-lesson>Back</button>
+                  </div>
+                  <article class="card thread-card">
+                    <span class="thread-line" aria-hidden="true"></span>
+                    <section class="thread-node">
+                      <p class="section-label">Your lesson</p>
+                      <p class="summary-text">
+                        We added validation everywhere, but the costly failures still came from two
+                        external integrations.
+                      </p>
+                    </section>
+                    <section class="thread-node">
+                      <div class="editor-heading">
+                        <strong>Editable post</strong>
+                        <div class="editor-actions">
+                          <button class="action-button" type="button" data-rate aria-label="Useful post">
+                            <svg><use href="#i-thumb-up"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-rate aria-label="Post needs improvement">
+                            <svg><use href="#i-thumb-down"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-regenerate aria-label="Regenerate post">
+                            <svg><use href="#i-refresh"></use></svg>
+                          </button>
+                          <button class="action-button" type="button" data-copy="Post copied" aria-label="Copy post">
+                            <svg><use href="#i-copy"></use></svg>
+                          </button>
+                        </div>
+                      </div>
+                      <textarea class="editor" aria-label="Editable experience post">Validation everywhere felt safer, but it also hid where the real risk lived.
+
+The costly failures still came from two external integrations. Internal paths produced noise; trust boundaries produced incidents.
+
+We changed the rule: validate where data crosses from something we trust less into something we trust more. Keep the rest lightweight.</textarea>
+                      <details class="source-details" open>
+                        <summary>Source and writing direction</summary>
+                        <div class="detail-body">
+                          <strong>Source:</strong> Your experience.<br />
+                          <strong>Direction:</strong> Turn the lesson into a specific boundary-first
+                          practice without inventing details.
+                        </div>
+                      </details>
+                    </section>
+                  </article>
+                </div>
+              </section>
+
+              <section class="screen hidden" data-screen="history">
+                <div class="page-heading">
+                  <div>
+                    <h2>History</h2>
+                    <p>Saved on this device · editable</p>
+                  </div>
+                  <button class="button danger compact" type="button" data-clear-history>
+                    Clear all
+                  </button>
+                </div>
+                <div class="history-tools">
+                  <input class="field-input" type="search" placeholder="Search replies, rewrites, ideas or sources" aria-label="Search history" data-history-search />
+                  <select class="field-select" aria-label="Filter history" data-history-filter>
+                    <option value="all">All work</option>
+                    <option value="reply">Replies</option>
+                    <option value="rewrite">Rewrites</option>
+                    <option value="idea">Ideas</option>
+                  </select>
+                </div>
+                <div data-history-list>
+                  <details class="card history-item" open data-history-type="reply" data-history-text="maya architecture assumptions reply source post insight question extend challenge">
+                    <summary class="history-summary">
+                      <span class="history-type"><svg><use href="#i-message"></use></svg></span>
+                      <span class="history-copy">
+                        <strong>Architecture decisions need visible assumptions</strong>
+                        <span>Reply · Maya Chen · today</span>
+                      </span>
+                    </summary>
+                    <div class="history-body">
+                      <div class="history-badge-row">
+                        <span class="history-badge">Reply · edited</span>
+                        <button class="button danger compact" type="button" data-request-delete>
+                          Delete
+                        </button>
+                      </div>
+                      <h3 class="history-record-title">Reply to Maya Chen</h3>
+                      <div class="history-record-meta">
+                        <span>Today, 10:42</span>
+                        <a href="#">Open source post</a>
+                      </div>
+
+                      <section class="saved-summary">
+                        <div class="summary-head">
+                          <strong>LinkedIn post summary</strong>
+                          <div class="language-tabs">
+                            <button class="active" type="button" data-history-language="english">English</button>
+                            <button type="button" data-history-language="bangla">বাংলা</button>
+                          </div>
+                        </div>
+                        <p class="summary-text" data-history-summary="english">
+                          The author argues that teams adopt architecture patterns before their
+                          constraints are clear, then defend those choices after the context
+                          changes.
+                        </p>
+                        <p class="summary-text hidden" data-history-summary="bangla" lang="bn">
+                          লেখকের মতে, দলগুলো সীমাবদ্ধতা পরিষ্কার হওয়ার আগেই আর্কিটেকচার প্যাটার্ন
+                          বেছে নেয় এবং পরিস্থিতি বদলানোর পরও সেই সিদ্ধান্ত ধরে রাখে।
+                        </p>
+                      </section>
+                      <div class="review-note">
+                        <strong>Review before posting:</strong> The discussion does not state how
+                        long this architecture is expected to last.
+                      </div>
+
+                      <div class="history-version-tabs" role="tablist" aria-label="Saved reply versions">
+                        <button class="active" type="button" role="tab" aria-selected="true" data-history-version="insight">Insight</button>
+                        <button type="button" role="tab" aria-selected="false" data-history-version="question">Question</button>
+                        <button type="button" role="tab" aria-selected="false" data-history-version="extend">Extend</button>
+                        <button type="button" role="tab" aria-selected="false" data-history-version="challenge">Challenge</button>
+                      </div>
+                      <div class="saved-label-row">
+                        <strong>Saved reply</strong>
+                        <span data-history-version-meta>Insight · edited · 👍 Helpful</span>
+                      </div>
+                      <div class="saved-text" data-history-version-panel="insight">A useful way to frame this is that architecture decisions rarely fail because a team chose the “wrong” pattern. They fail when the assumptions behind that choice remain invisible.
+
+Writing down the constraint, expected lifetime, and reversal cost makes the decision easier to revisit without turning it into a debate about personal preference.</div>
+                      <div class="saved-text hidden" data-history-version-panel="question">How do you decide when an architecture choice deserves a formal record rather than a lightweight team note?
+
+Expected lifetime and reversal cost seem like useful thresholds, but I’m curious whether your teams use a different signal.</div>
+                      <div class="saved-text hidden" data-history-version-panel="extend">Reversibility is a useful addition to this. A pattern chosen early is less dangerous when the team has documented what would trigger a change and kept the exit cost visible.</div>
+                      <div class="saved-text hidden" data-history-version-panel="challenge">Delaying every decision can hide a different cost: teams invent incompatible local conventions.
+
+The balance may be to standardize only the boundaries that are expensive to reverse.</div>
+
+                      <details class="record-details" open>
+                        <summary>Source and reasoning</summary>
+                        <div class="detail-body">
+                          <strong>Source:</strong> Maya Chen · “Teams reach for architecture patterns
+                          too early…” <a href="#">Open LinkedIn post</a><br />
+                          <strong>Approach:</strong> Add a practical decision-making lens without
+                          claiming the author’s experience.
+                        </div>
+                      </details>
+                      <details class="record-details">
+                        <summary>Revisions <span class="micro">2</span></summary>
+                        <div>
+                          <article class="revision-item">
+                            <div>
+                              <div class="revision-meta">
+                                <span>Current</span><span>Today, 10:42</span><span>Gemini</span>
+                              </div>
+                              <p>Architecture decisions rarely fail because a team chose the wrong pattern…</p>
+                            </div>
+                            <button class="action-button" type="button" data-copy="Revision copied" aria-label="Copy revision">
+                              <svg><use href="#i-copy"></use></svg>
+                            </button>
+                          </article>
+                          <article class="revision-item">
+                            <div>
+                              <div class="revision-meta">
+                                <span>Pinned</span><span>Today, 10:36</span><span>Gemini</span>
+                              </div>
+                              <p>A practical architecture decision starts by making its assumptions visible…</p>
+                            </div>
+                            <button class="action-button" type="button" data-restore aria-label="Restore revision">
+                              <svg><use href="#i-history"></use></svg>
+                            </button>
+                          </article>
+                        </div>
+                      </details>
+                    </div>
+                  </details>
+
+                  <details class="card history-item" data-history-type="rewrite" data-history-text="product update migration deployment rewrite polish clarify original revisions">
+                    <summary class="history-summary">
+                      <span class="history-type"><svg><use href="#i-wand"></use></svg></span>
+                      <span class="history-copy">
+                        <strong>Product update with a clearer point</strong>
+                        <span>Rewrite · edited today</span>
+                      </span>
+                    </summary>
+                    <div class="history-body">
+                      <div class="history-badge-row">
+                        <span class="history-badge">Rewrite · edited</span>
+                        <button class="button danger compact" type="button" data-request-delete>
+                          Delete
+                        </button>
+                      </div>
+                      <h3 class="history-record-title">Product update with a clearer point</h3>
+                      <div class="history-record-meta">
+                        <span>Today, 09:18</span><span>Goal: Polish and clarify</span>
+                      </div>
+                      <details class="record-details" open>
+                        <summary>Original content</summary>
+                        <p class="detail-body">
+                          We changed how the dashboard works and there are a lot of improvements
+                          that should make it easier for teams to understand what needs attention.
+                        </p>
+                      </details>
+                      <div class="saved-label-row">
+                        <strong>Saved rewrite</strong><span>Edited · 👍 Helpful</span>
+                      </div>
+                      <div class="saved-text">The dashboard now makes the next decision easier to see. Teams can identify what needs attention, understand why it matters, and move from signal to action with less searching.</div>
+                      <div class="button-row" style="margin-top: var(--space-2)">
+                        <button class="button secondary compact" type="button" data-copy="Rewrite copied">
+                          Copy
+                        </button>
+                      </div>
+                      <details class="record-details">
+                        <summary>Revisions <span class="micro">1</span></summary>
+                        <article class="revision-item">
+                          <div>
+                            <div class="revision-meta">
+                              <span>Previous</span><span>Today, 09:12</span><span>Gemini</span>
+                            </div>
+                            <p>The updated dashboard helps teams understand what needs attention…</p>
+                          </div>
+                          <button class="action-button" type="button" data-restore aria-label="Restore revision">
+                            <svg><use href="#i-history"></use></svg>
+                          </button>
+                        </article>
+                      </details>
+                    </div>
+                  </details>
+
+                  <details class="card history-item" data-history-type="idea" data-history-text="typescript runtime boundaries idea dev source post summary revisions">
+                    <summary class="history-summary">
+                      <span class="history-type"><svg><use href="#i-file"></use></svg></span>
+                      <span class="history-copy">
+                        <strong>Runtime boundaries matter more than types</strong>
+                        <span>Idea · DEV · yesterday</span>
+                      </span>
+                    </summary>
+                    <div class="history-body">
+                      <div class="history-badge-row">
+                        <span class="history-badge">Idea · strong fit</span>
+                        <button class="button danger compact" type="button" data-request-delete>
+                          Delete
+                        </button>
+                      </div>
+                      <h3 class="history-record-title">
+                        Runtime boundaries matter more than adding TypeScript types everywhere
+                      </h3>
+                      <div class="history-record-meta">
+                        <span>DEV · yesterday</span><span>Post saved at 16:18</span>
+                      </div>
+                      <section class="history-origin">
+                        <p>
+                          This fits your systems perspective and gives engineering leaders a
+                          concrete way to prioritize validation work.
+                        </p>
+                        <p class="caution">
+                          Best if you add one example of a trust boundary your team prioritized.
+                        </p>
+                        <a href="#">Source: TypeScript Patterns for Production AI Apps</a>
+                      </section>
+                      <section class="saved-summary">
+                        <div class="summary-head">
+                          <strong>LinkedIn post summary</strong>
+                          <div class="language-tabs">
+                            <button class="active" type="button" data-idea-history-language="english">English</button>
+                            <button type="button" data-idea-history-language="bangla">বাংলা</button>
+                          </div>
+                        </div>
+                        <p class="summary-text" data-idea-history-summary="english">
+                          This post argues that runtime validation should focus on risky trust
+                          boundaries, starting with external inputs and cross-service messages.
+                        </p>
+                        <p class="summary-text hidden" data-idea-history-summary="bangla" lang="bn">
+                          এই পোস্টে বলা হয়েছে, রানটাইম ভ্যালিডেশন ঝুঁকিপূর্ণ ট্রাস্ট বাউন্ডারিতে
+                          গুরুত্ব দেওয়া উচিত।
+                        </p>
+                      </section>
+                      <div class="saved-label-row">
+                        <strong>Saved post</strong><span>Edited · No feedback</span>
+                      </div>
+                      <div class="saved-text">TypeScript can describe a system perfectly and still leave its riskiest boundaries unprotected.
+
+Start with external inputs, third-party responses, stored legacy data, and messages crossing service boundaries. Validate those deliberately.</div>
+                      <div class="button-row" style="margin-top: var(--space-2)">
+                        <button class="button secondary compact" type="button" data-copy="Post copied">
+                          Copy
+                        </button>
+                      </div>
+                      <details class="record-details" open>
+                        <summary>Source and writing direction</summary>
+                        <div class="detail-body">
+                          <strong>Source:</strong> Practical TypeScript boundaries on DEV.<br />
+                          <strong>Direction:</strong> Turn the source’s validation guidance into a
+                          boundary-first decision framework.
+                        </div>
+                      </details>
+                      <details class="record-details">
+                        <summary>Revisions <span class="micro">1</span></summary>
+                        <article class="revision-item">
+                          <div>
+                            <div class="revision-meta">
+                              <span>Previous</span><span>Yesterday, 16:10</span><span>Gemini</span>
+                            </div>
+                            <p>Type systems are strongest inside trusted boundaries…</p>
+                          </div>
+                          <button class="action-button" type="button" data-restore aria-label="Restore revision">
+                            <svg><use href="#i-history"></use></svg>
+                          </button>
+                        </article>
+                      </details>
+                    </div>
+                  </details>
+                </div>
+                <div class="card empty-state hidden" data-history-empty>
+                  <span class="state-symbol">⌕</span>
+                  <h3>No matching history</h3>
+                  <p>Change your search or create a new reply or idea.</p>
+                </div>
+              </section>
+
+              <section class="screen hidden" data-screen="settings">
+                <div class="page-heading">
+                  <div>
+                    <h2>Settings</h2>
+                    <p>Profile, connections and local data</p>
+                  </div>
+                  <span class="utility-status">Auto-saved</span>
+                </div>
+                <article class="card readiness-card">
+                  <p class="eyebrow">Ready to write</p>
+                  <h3>Your essentials are complete.</h3>
+                  <div class="chip-row">
+                    <span class="status-chip">✓ Share access</span>
+                    <span class="status-chip">✓ AI services</span>
+                    <span class="status-chip">✓ Writing profile</span>
+                  </div>
+                </article>
+
+                <details class="card settings-section" open>
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>Connections</strong>
+                      <span>Android sharing · Gemini and Groq ready</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <div class="connection-row">
+                      <span class="connection-icon"><svg><use href="#i-share"></use></svg></span>
+                      <span class="connection-copy">
+                        <strong>Android sharing</strong>
+                        <span>Receives only content you share</span>
+                      </span>
+                      <span class="connection-status">READY</span>
+                    </div>
+                    <div class="connection-row">
+                      <span class="connection-icon">AI</span>
+                      <span class="connection-copy">
+                        <strong>Gemini</strong>
+                        <span>Primary writing provider</span>
+                      </span>
+                      <span class="connection-status">READY</span>
+                    </div>
+                    <div class="connection-row">
+                      <span class="connection-icon">GQ</span>
+                      <span class="connection-copy">
+                        <strong>Groq</strong>
+                        <span>One automatic fallback</span>
+                      </span>
+                      <span class="connection-status">READY</span>
+                    </div>
+                    <button class="button secondary full" type="button" data-open-dialog="keys">
+                      Review API keys
+                    </button>
+                    <button class="button secondary full" type="button" style="margin-top: var(--space-2)" data-check-connections>
+                      Check connections
+                    </button>
+                  </div>
+                </details>
+
+                <details class="card settings-section">
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>History & storage</strong>
+                      <span>Latest 20 items · stored on this device</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <div class="field">
+                      <label for="retention">History retention</label>
+                      <select id="retention" class="field-select" data-retention>
+                        <option selected>Latest 20 items</option>
+                        <option>Latest 50 items</option>
+                        <option>Keep for 30 days</option>
+                        <option>Keep until deleted</option>
+                      </select>
+                    </div>
+                    <p class="micro">Reply, rewrite and idea history stays on this device.</p>
+                    <div class="button-row">
+                      <button class="button secondary" type="button" data-open-dialog="import">
+                        Import data
+                      </button>
+                      <button class="button secondary" type="button" data-open-dialog="export">
+                        Export data
+                      </button>
+                    </div>
+                  </div>
+                </details>
+
+                <details class="card settings-section">
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>Writing profile</strong>
+                      <span>Senior software engineer · engineering leaders</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <p class="micro">
+                      Optionally use your own LinkedIn Save to PDF export to refresh these fields.
+                      The raw PDF is discarded after suggestions are created.
+                    </p>
+                    <label class="inline-check">
+                      <input type="checkbox" />
+                      I confirm this PDF is an export of my own LinkedIn profile.
+                    </label>
+                    <button class="button secondary full" type="button" data-open-dialog="profile-import">
+                      Choose PDF & review suggestions
+                    </button>
+                    <div class="field">
+                      <label for="role">Your role</label>
+                      <input id="role" class="field-input" value="Senior software engineer" />
+                    </div>
+                    <div class="field">
+                      <label for="topics">Topics you know well</label>
+                      <input id="topics" class="field-input" value="Architecture, TypeScript, migrations" />
+                    </div>
+                    <div class="field">
+                      <label for="audience">People you want to reach</label>
+                      <input id="audience" class="field-input" value="Engineering leaders" />
+                    </div>
+                    <button class="button danger full" type="button" data-open-dialog="clear-profile">
+                      Clear writing profile
+                    </button>
+                  </div>
+                </details>
+
+                <details class="card settings-section">
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>Writing preferences</strong>
+                      <span>Standard length · match source language</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <div class="field">
+                      <label for="reply-length">Reply length</label>
+                      <select id="reply-length" class="field-select">
+                        <option>Concise · up to 35 words</option>
+                        <option selected>Standard · 36–70 words</option>
+                        <option>Detailed · 71–120 words</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="post-length">Post length</label>
+                      <select id="post-length" class="field-select">
+                        <option>Concise · up to 120 words</option>
+                        <option selected>Standard · 121–250 words</option>
+                        <option>Detailed · 251–400 words</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="language">Writing language</label>
+                      <select id="language" class="field-select">
+                        <option>Match the source</option>
+                        <option>English</option>
+                        <option>বাংলা</option>
+                      </select>
+                    </div>
+                    <label class="inline-check">
+                      <input type="checkbox" />Allow occasional emoji
+                    </label>
+                    <label class="inline-check">
+                      <input type="checkbox" />Allow useful hashtags
+                    </label>
+                  </div>
+                </details>
+
+                <details class="card settings-section">
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>Ideas & research</strong>
+                      <span>5 sources · public research enabled</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <div class="switch-row">
+                      <span class="switch-copy">
+                        <strong>Use public sources</strong>
+                        <span>Include allowed sources in idea searches.</span>
+                      </span>
+                      <label class="switch">
+                        <input type="checkbox" checked aria-label="Use public sources" />
+                        <span class="switch-track"></span>
+                      </label>
+                    </div>
+                    <div class="field" style="margin-top: var(--space-3)">
+                      <label for="research-topics">Topics</label>
+                      <input id="research-topics" class="field-input" value="TypeScript, architecture, AI tooling, engineering leadership" />
+                    </div>
+                    <details class="record-details">
+                      <summary>Choose allowed public sources</summary>
+                      <div>
+                        <label class="source-toggle">
+                          <span>Hacker News</span>
+                          <span class="switch"><input type="checkbox" checked /><span class="switch-track"></span></span>
+                        </label>
+                        <label class="source-toggle">
+                          <span>DEV</span>
+                          <span class="switch"><input type="checkbox" checked /><span class="switch-track"></span></span>
+                        </label>
+                        <label class="source-toggle">
+                          <span>Medium</span>
+                          <span class="switch"><input type="checkbox" checked /><span class="switch-track"></span></span>
+                        </label>
+                        <label class="source-toggle">
+                          <span>Lobsters</span>
+                          <span class="switch"><input type="checkbox" checked /><span class="switch-track"></span></span>
+                        </label>
+                        <label class="source-toggle">
+                          <span>Stack Overflow</span>
+                          <span class="switch"><input type="checkbox" checked /><span class="switch-track"></span></span>
+                        </label>
+                      </div>
+                    </details>
+                    <button class="button secondary full" type="button" data-restore-defaults>
+                      Restore defaults
+                    </button>
+                  </div>
+                </details>
+
+                <details class="card settings-section">
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>Tone & voice</strong>
+                      <span>Analytical · custom guidance active</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <div class="field">
+                      <label>Default tone</label>
+                      <div class="tone-grid" role="radiogroup" aria-label="Default writing tone">
+                        <label class="tone-option"><input type="radio" name="android-tone" />Conversational</label>
+                        <label class="tone-option"><input type="radio" name="android-tone" />Concise</label>
+                        <label class="tone-option"><input type="radio" name="android-tone" checked />Analytical</label>
+                        <label class="tone-option"><input type="radio" name="android-tone" />Supportive</label>
+                        <label class="tone-option"><input type="radio" name="android-tone" />Challenging</label>
+                        <label class="tone-option"><input type="radio" name="android-tone" />Custom</label>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="tone-guidance">Tone instructions</label>
+                      <textarea id="tone-guidance" class="editor compact">Use calm, direct language. Lead with a concrete observation, name trade-offs, and avoid motivational filler.</textarea>
+                    </div>
+                    <div class="field">
+                      <label for="writing-sample">Writing sample</label>
+                      <textarea id="writing-sample" class="editor compact" placeholder="Paste one of your own posts"></textarea>
+                    </div>
+                    <div class="button-row">
+                      <button class="button secondary" type="button" data-add-sample>Add sample</button>
+                      <button class="button" type="button" data-open-dialog="style-guide">
+                        Create style guide
+                      </button>
+                    </div>
+                    <details class="record-details">
+                      <summary>Edit style guide</summary>
+                      <textarea class="editor compact">Use clear openings, short paragraphs, practical trade-offs, and specific takeaways. Avoid motivational filler.</textarea>
+                    </details>
+                    <details class="record-details">
+                      <summary>Learned preferences <span class="status-chip">6 ready</span></summary>
+                      <p class="micro">
+                        Likes, dislikes, chosen directions and substantial edits. Copying does not
+                        influence learning, and nothing changes without review.
+                      </p>
+                      <div class="button-row">
+                        <button class="button danger" type="button" data-open-dialog="reset-preferences">
+                          Reset
+                        </button>
+                        <button class="button secondary" type="button" data-open-dialog="feedback-review">
+                          Review feedback
+                        </button>
+                      </div>
+                    </details>
+                  </div>
+                </details>
+
+                <details class="card settings-section">
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>Shared-source capture</strong>
+                      <span>Android Share target · explicit review</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <p class="micro">
+                      Android sharing replaces Chrome layout calibration. Thoughtline cannot inspect
+                      LinkedIn’s private in-app DOM, so every source packet is reviewed before use.
+                    </p>
+                    <div class="connection-row">
+                      <span class="connection-icon"><svg><use href="#i-share"></use></svg></span>
+                      <span class="connection-copy">
+                        <strong>LinkedIn share target</strong>
+                        <span>Post text and link · explicit user action</span>
+                      </span>
+                      <span class="connection-status">ACTIVE</span>
+                    </div>
+                    <button class="button secondary full" type="button" data-open-share>
+                      Review sample capture
+                    </button>
+                  </div>
+                </details>
+
+                <details class="card settings-section">
+                  <summary>
+                    <span class="settings-summary-copy">
+                      <strong>Help & support</strong>
+                      <span>Diagnostics, privacy and project support</span>
+                    </span>
+                  </summary>
+                  <div class="settings-body">
+                    <div class="switch-row">
+                      <span class="switch-copy">
+                        <strong>AI processing permission</strong>
+                        <span>Required only for new AI work.</span>
+                      </span>
+                      <label class="switch">
+                        <input type="checkbox" checked aria-label="AI processing permission" />
+                        <span class="switch-track"></span>
+                      </label>
+                    </div>
+                    <p class="micro">
+                      No LinkedIn automation, posting or account connection. Shared source content
+                      is sent directly to your configured AI provider only when you ask.
+                    </p>
+                    <div class="settings-actions-stack">
+                      <button class="button secondary full" type="button" data-copy="Diagnostics copied">
+                        Copy diagnostics
+                      </button>
+                      <button class="button secondary full" type="button" data-open-dialog="privacy">
+                        Privacy & Terms
+                      </button>
+                      <a class="button secondary full" href="https://www.supportkori.com/montasim" target="_blank" rel="noreferrer">
+                        Open support
+                      </a>
+                    </div>
+                  </div>
+                </details>
+              </section>
+
+              <section class="screen hidden" data-screen="setup">
+                <div class="setup-progress" role="progressbar" aria-label="Setup progress" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" data-setup-progress>
+                  <span class="done"></span><span></span><span></span><span></span>
+                </div>
+
+                <div class="setup-step-panel" data-setup-step="1">
+                  <div class="setup-hero">
+                    <span class="brand-mark" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M12 2.5a9 9 0 0 1 7.2 14.4A9 9 0 0 1 7 18.5L3.8 21l.9-4.2A9 9 0 0 1 12 2.5Z" fill="#315f91"></path>
+                        <path d="m12 5.2 4.1 5.8-4.1 7.2L7.9 11 12 5.2Z" fill="#fff"></path>
+                        <circle cx="12" cy="11.8" r="1.1" fill="#315f91"></circle>
+                      </svg>
+                    </span>
+                    <h2>You stay in control</h2>
+                    <p>
+                      Thoughtline helps shape writing from content you choose. It never opens,
+                      scrolls, or publishes on LinkedIn.
+                    </p>
+                  </div>
+                  <article class="card form-card">
+                    <p class="eyebrow">Boundaries</p>
+                    <ul class="setup-list">
+                      <li><b>01</b><span>Use LinkedIn’s Share action and choose Thoughtline.</span></li>
+                      <li><b>02</b><span>Review the exact text and link Android passes to the app.</span></li>
+                      <li><b>03</b><span>Add copied visible discussion context only when it matters.</span></li>
+                      <li><b>04</b><span>Review, edit and copy. You always publish manually.</span></li>
+                    </ul>
+                    <label class="checkbox-row">
+                      <input type="checkbox" checked data-setup-consent />
+                      <span>
+                        I agree to the Terms of Service and allow content needed for my writing
+                        request to be sent to Gemini and, if needed, once to Groq.
+                      </span>
+                    </label>
+                    <button class="button full" type="button" style="margin-top: var(--space-3)" data-setup-go="2">
+                      Continue
+                    </button>
+                  </article>
+                </div>
+
+                <div class="setup-step-panel hidden" data-setup-step="2">
+                  <h2 class="setup-step-heading">Connect your AI services</h2>
+                  <p class="setup-step-copy">
+                    Gemini handles each request first. Groq retries once when Gemini cannot finish.
+                  </p>
+                  <article class="card form-card">
+                    <div class="connection-row">
+                      <span class="connection-icon"><svg><use href="#i-share"></use></svg></span>
+                      <span class="connection-copy">
+                        <strong>Android sharing</strong><span>Share target available</span>
+                      </span>
+                      <span class="connection-status">READY</span>
+                    </div>
+                    <div class="field" style="margin-top: var(--space-3)">
+                      <label for="setup-gemini">Gemini API key</label>
+                      <input id="setup-gemini" class="field-input" type="password" value="saved-gemini-key" />
+                    </div>
+                    <div class="field">
+                      <label for="setup-groq">Groq API key</label>
+                      <input id="setup-groq" class="field-input" type="password" value="saved-groq-key" />
+                    </div>
+                    <p class="micro">
+                      Both keys are validated with their provider and encrypted on this device.
+                    </p>
+                    <div class="button-row">
+                      <button class="button secondary" type="button" data-setup-go="1">Back</button>
+                      <button class="button" type="button" data-setup-go="3">Continue</button>
+                    </div>
+                  </article>
+                </div>
+
+                <div class="setup-step-panel hidden" data-setup-step="3">
+                  <h2 class="setup-step-heading">Give drafts your point of view</h2>
+                  <p class="setup-step-copy">
+                    Three short answers are enough to start. You can personalize more later.
+                  </p>
+                  <article class="card form-card">
+                    <button class="button secondary full" type="button" data-open-dialog="profile-import">
+                      Import my LinkedIn profile PDF
+                    </button>
+                    <div class="field" style="margin-top: var(--space-3)">
+                      <label for="setup-role">Your role *</label>
+                      <input id="setup-role" class="field-input" value="Senior software engineer" required />
+                    </div>
+                    <div class="field">
+                      <label for="setup-topics">Topics you know well *</label>
+                      <input id="setup-topics" class="field-input" value="TypeScript, system design, developer tooling" required />
+                    </div>
+                    <div class="field">
+                      <label for="setup-audience">People you want to reach *</label>
+                      <input id="setup-audience" class="field-input" value="Engineering leaders and experienced developers" required />
+                    </div>
+                    <div class="field">
+                      <label for="setup-tone">Default tone</label>
+                      <select id="setup-tone" class="field-select">
+                        <option>Conversational</option><option>Concise</option>
+                        <option selected>Analytical</option><option>Supportive</option>
+                        <option>Challenging</option>
+                      </select>
+                    </div>
+                    <div class="button-row">
+                      <button class="button secondary" type="button" data-setup-go="2">Back</button>
+                      <button class="button" type="button" data-setup-go="4">Save and continue</button>
+                    </div>
+                  </article>
+                </div>
+
+                <div class="setup-step-panel hidden" data-setup-step="4">
+                  <div class="setup-hero">
+                    <span class="state-symbol">✓</span>
+                    <h2>You’re ready to write</h2>
+                    <p>
+                      Share a visible LinkedIn post to Thoughtline, review the source packet, and
+                      choose the reply direction that fits.
+                    </p>
+                  </div>
+                  <article class="card form-card">
+                    <div class="connection-row">
+                      <span class="connection-icon">1</span>
+                      <span class="connection-copy"><strong>Boundaries</strong><span>Consent and manual publishing</span></span>
+                      <span class="connection-status">DONE</span>
+                    </div>
+                    <div class="connection-row">
+                      <span class="connection-icon">2</span>
+                      <span class="connection-copy"><strong>Connections</strong><span>Gemini and Groq validated</span></span>
+                      <span class="connection-status">DONE</span>
+                    </div>
+                    <div class="connection-row">
+                      <span class="connection-icon">3</span>
+                      <span class="connection-copy"><strong>About you</strong><span>Writing profile saved</span></span>
+                      <span class="connection-status">DONE</span>
+                    </div>
+                    <div class="button-row">
+                      <button class="button secondary" type="button" data-setup-go="3">Back</button>
+                      <button class="button" type="button" data-finish-setup>Start writing</button>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              <button class="fab" type="button" data-open-share aria-label="Share or paste content">
+                <svg><use href="#i-plus"></use></svg>
+                Add
+              </button>
+
+              <div class="scrim hidden" data-overlay="share" role="dialog" aria-modal="true" aria-label="Shared content review">
+                <div class="bottom-sheet">
+                  <div class="sheet-handle"></div>
+                  <p class="eyebrow">Incoming Android share</p>
+                  <h3>Review what LinkedIn shared</h3>
+                  <p>
+                    Thoughtline received this text and link because you chose it in Android’s Share
+                    sheet. Nothing else was read from LinkedIn.
+                  </p>
+                  <div class="shared-preview">
+                    <strong>Maya Chen · LinkedIn</strong>
+                    <p>
+                      Teams reach for architecture patterns before constraints are clear, then keep
+                      defending those choices after the context changes.
+                    </p>
+                    <p>linkedin.com/posts/maya-chen_architecture-decisions</p>
+                  </div>
+                  <div class="field">
+                    <label for="shared-context">Add visible comment or context <span class="micro">(optional)</span></label>
+                    <textarea id="shared-context" class="editor compact" placeholder="Paste only the context you want Thoughtline to consider."></textarea>
+                  </div>
+                  <div class="button-row">
+                    <button class="button quiet" type="button" data-close-overlay>Cancel</button>
+                    <button class="button" type="button" data-use-share>Use this source</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="scrim hidden" data-overlay="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+                <div class="dialog">
+                  <h3 id="dialog-title" data-dialog-title>Prototype dialog</h3>
+                  <p data-dialog-copy>Supporting settings and review content appears here.</p>
+                  <div data-dialog-content></div>
+                  <div class="button-row" style="margin-top: var(--space-4)">
+                    <button class="button quiet" type="button" data-close-overlay>Close</button>
+                    <button class="button" type="button" data-dialog-confirm>Save</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="toast hidden" role="status" aria-live="polite" data-toast>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <use href="#i-check"></use>
+                </svg>
+                <span>Copied</span>
+              </div>
+            </div>
+
+            <nav class="bottom-nav" aria-label="Main navigation">
+              <button class="nav-button active" type="button" data-nav="reply">
+                <svg><use href="#i-message"></use></svg><span>Reply</span>
+              </button>
+              <button class="nav-button" type="button" data-nav="generate">
+                <svg><use href="#i-wand"></use></svg><span>Generate</span>
+              </button>
+              <button class="nav-button" type="button" data-nav="idea">
+                <svg><use href="#i-bulb"></use></svg><span>Ideas</span>
+              </button>
+              <button class="nav-button" type="button" data-nav="history">
+                <svg><use href="#i-history"></use></svg><span>History</span>
+              </button>
+              <button class="nav-button" type="button" data-nav="settings">
+                <svg><use href="#i-settings"></use></svg><span>Settings</span>
+              </button>
+            </nav>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const app = document.querySelector('.android-app');
+      const screenSubtitles = {
+        reply: 'Shared from LinkedIn · just now',
+        generate: 'Rewrite in your saved voice',
+        idea: 'Research with source-native evidence',
+        history: 'Your editable work',
+        settings: 'Saved on this device',
+        setup: 'Step 1 of 4',
+      };
+      const replyDirections = {
+        insight:
+          'A useful way to frame this is that architecture decisions rarely fail because a team chose the “wrong” pattern. They fail when the assumptions behind that choice remain invisible.\\n\\nWriting down the constraint, expected lifetime, and reversal cost makes the decision easier to revisit without turning it into a debate about personal preference.',
+        question:
+          'How do you decide when an architecture choice deserves a formal record rather than a lightweight team note?\\n\\nI have found the harder part is not recording the decision—it is making the assumptions and reversal trigger explicit enough to revisit later.',
+        extend:
+          'Reversibility is a useful addition to this. A pattern chosen early is less dangerous when the team has documented what would trigger a change and kept the exit cost visible.\\n\\nThat turns architecture from a permanent verdict into a decision the system can outgrow.',
+        challenge:
+          'Choosing patterns too early creates complexity, but delaying every decision can hide another cost: teams invent incompatible local conventions.\\n\\nThe useful question may be which decisions need shared constraints now, and which should remain intentionally reversible.',
+      };
+      const dialogContent = {
+        more: {
+          title: 'Prototype states',
+          copy: 'Review the v5 reply states adapted to Android’s explicit Share flow.',
+          html:
+            '<div class="choice-grid"><button class="choice-card" type="button" data-reply-state-target="ready"><strong>Ready</strong><span>No source shared yet.</span></button><button class="choice-card" type="button" data-reply-state-target="setup"><strong>Setup needed</strong><span>Essentials incomplete.</span></button><button class="choice-card" type="button" data-reply-state-target="loading"><strong>Analyzing</strong><span>Four directions in progress.</span></button><button class="choice-card" type="button" data-reply-state-target="no-source"><strong>No source</strong><span>Share payload incomplete.</span></button><button class="choice-card" type="button" data-reply-state-target="api-key"><strong>Invalid key</strong><span>Connection needs review.</span></button><button class="choice-card" type="button" data-reply-state-target="provider-limit"><strong>Provider limit</strong><span>Both providers unavailable.</span></button><button class="choice-card" type="button" data-reply-state-target="fallback"><strong>Backup provider</strong><span>Groq recovered the set.</span></button><button class="choice-card active" type="button" data-reply-state-target="success"><strong>Four replies</strong><span>Completed draft set.</span></button></div><button class="button secondary full" type="button" data-go-setup>Review first-time setup</button>',
+          confirm: 'Done',
+        },
+        schedule: {
+          title: 'Schedule idea searches',
+          copy: 'Configure the v5 schedule preview. Saving validates these fields but does not create a running schedule.',
+          html:
+            '<label class="checkbox-row"><input type="checkbox" checked><span>Enable idea search schedule</span></label><div class="field" style="margin-top:var(--space-3)"><label>Frequency</label><select class="field-select"><option>Hourly</option><option>Daily</option><option selected>Weekly</option><option>Monthly</option></select></div><div class="schedule-grid"><div class="field"><label>Weekday</label><select class="field-select"><option>Monday</option><option selected>Wednesday</option><option>Friday</option></select></div><div class="field"><label>Time</label><input class="field-input" type="time" value="09:00"></div></div><div class="schedule-grid"><div class="field"><label>Day of month</label><input class="field-input" type="number" min="1" max="31" value="1"></div><div class="field"><label>Monthly time</label><input class="field-input" type="time" value="09:00"></div></div><label class="checkbox-row"><input type="checkbox" checked><span>Email me when scheduled ideas are ready.</span></label><div class="field" style="margin-top:var(--space-3)"><label>Email address</label><input class="field-input" type="email" value="you@example.com"></div>',
+          confirm: 'Save schedule',
+          action: 'schedule',
+        },
+        export: {
+          title: 'Export Thoughtline data',
+          copy: 'Create an encrypted local archive.',
+          html:
+            '<label class="checkbox-row"><input type="checkbox" checked><span>History, source snapshots, edits, ratings and revisions</span></label><label class="checkbox-row" style="margin-top:var(--space-2)"><input type="checkbox" checked><span>Writing profile, style guide and learned preferences</span></label><p class="micro">API keys, encryption keys, permissions and diagnostics are never included.</p>',
+          confirm: 'Export archive',
+          action: 'export',
+        },
+        import: {
+          title: 'Import Thoughtline data',
+          copy: 'Review a validated archive before changing this device.',
+          html:
+            '<div class="field"><label>Thoughtline archive</label><input class="field-input" type="file" accept=".json,application/json"></div><div class="review-note"><strong>Nothing changes yet.</strong> The archive is validated and summarized before any local data is replaced.</div>',
+          confirm: 'Validate archive',
+          action: 'import',
+        },
+        keys: {
+          title: 'Review API keys',
+          copy: 'Keys are encrypted on this device and excluded from data archives and diagnostics.',
+          html:
+            '<div class="field"><label>Gemini API key</label><input class="field-input" id="dialog-gemini-key" type="password" value="saved-gemini-key"><div class="button-row" style="margin-top:var(--space-2)"><button class="button quiet compact" type="button" data-toggle-secret="dialog-gemini-key">Show key</button><button class="button danger compact" type="button" data-open-dialog="remove-key">Remove Gemini key</button></div></div><div class="field"><label>Groq API key</label><input class="field-input" id="dialog-groq-key" type="password" value="saved-groq-key"><div class="button-row" style="margin-top:var(--space-2)"><button class="button quiet compact" type="button" data-toggle-secret="dialog-groq-key">Show key</button><button class="button danger compact" type="button" data-open-dialog="remove-key">Remove Groq key</button></div></div>',
+          confirm: 'Check connections',
+          action: 'connections',
+        },
+        'profile-import': {
+          title: 'Review profile suggestions',
+          copy: 'Your saved profile has not changed. Edit the suggestions before applying them.',
+          html:
+            '<label class="checkbox-row"><input type="checkbox" checked><span>I confirm this PDF is an export of my own LinkedIn profile.</span></label><button class="button secondary full" type="button" style="margin-top:var(--space-2)"><svg><use href="#i-file"></use></svg>Choose PDF</button><div class="field" style="margin-top:var(--space-3)"><label>Suggested role</label><input class="field-input" value="Senior software engineer"></div><div class="field"><label>Suggested topics</label><input class="field-input" value="TypeScript, system design, developer tooling"></div><div class="field"><label>Suggested audience</label><input class="field-input" value="Engineering leaders and experienced developers"></div><p class="micro">The raw PDF is discarded after these suggestions are created.</p>',
+          confirm: 'Apply changes',
+          action: 'profile',
+        },
+        'style-guide': {
+          title: 'Review style guide',
+          copy: 'Edit the proposal before it affects future drafts.',
+          html:
+            '<textarea class="editor">Use clear openings, short paragraphs, practical trade-offs, and specific takeaways. Avoid motivational filler.</textarea><div class="review-note"><strong>Review first.</strong> Nothing changes until you apply this proposal.</div>',
+          confirm: 'Apply style guide',
+          action: 'style',
+        },
+        'feedback-review': {
+          title: 'Review learned preferences',
+          copy: 'Nothing changes until you apply the proposal.',
+          html:
+            '<div class="shared-preview"><strong>Proposed guidance</strong><p>Prefer openings that name a concrete constraint. Keep disagreement calm, use short paragraphs, and avoid generic praise.</p></div><div class="shared-preview"><strong>Evidence</strong><p>6 examples from likes, dislikes, chosen directions and substantial edits.</p></div>',
+          confirm: 'Apply preferences',
+          action: 'preferences',
+        },
+        'reset-preferences': {
+          title: 'Reset learned preferences?',
+          copy: 'Accepted preference guidance and local scores will be removed.',
+          html: '<p class="micro">Your writing profile, style guide and History remain.</p>',
+          confirm: 'Reset preferences',
+          action: 'reset-preferences',
+          danger: true,
+        },
+        'clear-profile': {
+          title: 'Clear writing profile?',
+          copy: 'Role, topics, audience and profile-derived data will be removed.',
+          html:
+            '<p class="micro">History, API keys, style guide and learned preferences remain. New AI requests stay unavailable until the required fields are completed again.</p>',
+          confirm: 'Clear profile',
+          action: 'clear-profile',
+          danger: true,
+        },
+        'remove-key': {
+          title: 'Remove this API key?',
+          copy: 'The encrypted credential and its session copy will be deleted.',
+          html: '<p class="micro">New AI requests will be unavailable until a valid replacement key is saved.</p>',
+          confirm: 'Remove key',
+          action: 'remove-key',
+          danger: true,
+        },
+        retention: {
+          title: 'Change History retention?',
+          copy: 'The stricter policy would remove 4 older records now.',
+          html:
+            '<p class="micro">Pinned revisions do not protect their parent record from retention. Export first if you want a backup.</p>',
+          confirm: 'Change and remove 4',
+          action: 'retention',
+          danger: true,
+        },
+        'clear-history': {
+          title: 'Clear all History?',
+          copy: 'This removes every Reply, Rewrite, Idea, source snapshot, edit, rating and revision.',
+          html:
+            '<div class="review-note"><strong>Learned preferences remain.</strong> Reset them separately in Tone & voice if you also want to remove accepted preferences.</div>',
+          confirm: 'Clear all',
+          action: 'clear-history',
+          danger: true,
+        },
+        'delete-history': {
+          title: 'Delete this History item?',
+          copy: 'Its source snapshot, drafts, edits, feedback and revisions will be removed.',
+          html: '',
+          confirm: 'Delete item',
+          action: 'delete-history',
+          danger: true,
+        },
+        privacy: {
+          title: 'Privacy & Terms',
+          copy: 'Thoughtline processes only content you explicitly share or paste.',
+          html:
+            '<div class="shared-preview"><strong>Manual by design</strong><p>No LinkedIn automation, posting, account connection or private in-app page access.</p></div><div class="shared-preview"><strong>Direct AI processing</strong><p>Gemini handles each request first; Groq receives the same bounded content only for one eligible fallback.</p></div>',
+          confirm: 'Got it',
+        },
+      };
+
+      let toastTimer;
+      let pendingHistoryDelete = null;
+      const historyVersionMeta = {
+        insight: 'Insight · edited · 👍 Helpful',
+        question: 'Question · generated',
+        extend: 'Extend · generated',
+        challenge: 'Challenge · generated',
+      };
+
+      function showScreen(name) {
+        document.querySelectorAll('[data-screen]').forEach((screen) => {
+          const active = screen.dataset.screen === name;
+          screen.classList.toggle('hidden', !active);
+          if (active) {
+            screen.classList.remove('entering');
+            void screen.offsetWidth;
+            screen.classList.add('entering');
+            screen.scrollTop = 0;
+          }
+        });
+        document.querySelectorAll('[data-nav]').forEach((button) => {
+          button.classList.toggle('active', button.dataset.nav === name);
+        });
+        document.querySelector('.bottom-nav').classList.toggle('hidden', name === 'setup');
+        document
+          .querySelector('.fab')
+          .classList.toggle(
+            'hidden',
+            name === 'setup' || name === 'settings' || name === 'history' || name === 'idea',
+          );
+        document.querySelector('[data-app-subtitle]').textContent = screenSubtitles[name] || '';
+        const url = new URL(window.location.href);
+        url.searchParams.set('screen', name);
+        history.replaceState(null, '', url);
+      }
+
+      function showToast(message) {
+        const toast = document.querySelector('[data-toast]');
+        toast.querySelector('span').textContent = message;
+        toast.classList.remove('hidden');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.add('hidden'), 1800);
+      }
+
+      function openOverlay(name) {
+        document.querySelector(`[data-overlay="${name}"]`).classList.remove('hidden');
+      }
+
+      function closeOverlays() {
+        document.querySelectorAll('[data-overlay]').forEach((overlay) => overlay.classList.add('hidden'));
+      }
+
+      function openDialog(name) {
+        const content = dialogContent[name] || dialogContent.more;
+        const overlay = document.querySelector('[data-overlay="dialog"]');
+        overlay.dataset.dialogAction = content.action || 'generic';
+        document.querySelector('[data-dialog-title]').textContent = content.title;
+        document.querySelector('[data-dialog-copy]').textContent = content.copy;
+        document.querySelector('[data-dialog-content]').innerHTML = content.html;
+        const confirm = document.querySelector('[data-dialog-confirm]');
+        confirm.textContent = content.confirm;
+        confirm.classList.toggle('danger', Boolean(content.danger));
+        openOverlay('dialog');
+      }
+
+      function showReplyState(name) {
+        document.querySelectorAll('[data-reply-state]').forEach((state) => {
+          state.classList.toggle('hidden', state.dataset.replyState !== name);
+        });
+        showScreen('reply');
+        document.querySelector('[data-screen="reply"]').scrollTop = 0;
+      }
+
+      function showSetupStep(step) {
+        const resolved = Math.min(4, Math.max(1, Number(step)));
+        document.querySelectorAll('[data-setup-step]').forEach((panel) => {
+          panel.classList.toggle('hidden', Number(panel.dataset.setupStep) !== resolved);
+        });
+        const progress = document.querySelector('[data-setup-progress]');
+        progress.setAttribute('aria-valuenow', String(resolved));
+        progress.querySelectorAll('span').forEach((bar, index) => {
+          bar.classList.toggle('done', index < resolved);
+        });
+        screenSubtitles.setup = `Step ${resolved} of 4`;
+        document.querySelector('[data-app-subtitle]').textContent = screenSubtitles.setup;
+        document.querySelector('[data-screen="setup"]').scrollTop = 0;
+      }
+
+      function showIdeaPanel(name) {
+        const map = {
+          loading: '[data-idea-loading]',
+          list: '[data-idea-list]',
+          fallback: '[data-idea-fallback]',
+          post: '[data-idea-post]',
+          experience: '[data-experience-post]',
+        };
+        Object.entries(map).forEach(([key, selector]) => {
+          document.querySelector(selector).classList.toggle('hidden', key !== name);
+        });
+        document.querySelector('[data-screen="idea"]').scrollTop = 0;
+      }
+
+      function filterHistory() {
+        const query = document.querySelector('[data-history-search]').value.trim().toLowerCase();
+        const type = document.querySelector('[data-history-filter]').value;
+        let visible = 0;
+        document.querySelectorAll('[data-history-type]').forEach((item) => {
+          const matchesQuery = item.dataset.historyText.includes(query);
+          const matchesType = type === 'all' || item.dataset.historyType === type;
+          item.classList.toggle('hidden', !(matchesQuery && matchesType));
+          if (matchesQuery && matchesType) visible += 1;
+        });
+        document.querySelector('[data-history-empty]').classList.toggle('hidden', visible !== 0);
+      }
+
+      app.addEventListener('click', (event) => {
+        const target = event.target.closest('button');
+        if (!target) return;
+
+        if (target.dataset.nav) showScreen(target.dataset.nav);
+        if (target.dataset.openShare !== undefined) openOverlay('share');
+        if (target.dataset.closeOverlay !== undefined) closeOverlays();
+        if (target.dataset.openDialog) openDialog(target.dataset.openDialog);
+
+        if (target.dataset.goSetup !== undefined) {
+          closeOverlays();
+          showScreen('setup');
+          showSetupStep(1);
+        }
+        if (target.dataset.goSettings !== undefined) {
+          closeOverlays();
+          showScreen('settings');
+        }
+        if (target.dataset.setupGo) showSetupStep(target.dataset.setupGo);
+        if (target.dataset.finishSetup !== undefined) {
+          showToast('Setup complete');
+          showReplyState('ready');
+        }
+        if (target.dataset.useShare !== undefined) {
+          closeOverlays();
+          showReplyState('success');
+          showToast('Shared source ready for review');
+        }
+
+        if (target.dataset.replyStateTarget) {
+          closeOverlays();
+          showReplyState(target.dataset.replyStateTarget);
+        }
+        if (target.dataset.copy) showToast(target.dataset.copy);
+        if (target.dataset.rate !== undefined) {
+          target.parentElement?.querySelectorAll('[data-rate]').forEach((button) => {
+            if (button !== target) button.classList.remove('pressed');
+          });
+          target.classList.toggle('pressed');
+          showToast(target.classList.contains('pressed') ? 'Feedback saved' : 'Feedback removed');
+        }
+        if (target.dataset.regenerate !== undefined) {
+          target.classList.add('pressed');
+          showToast('Fresh version created');
+          setTimeout(() => target.classList.remove('pressed'), 550);
+        }
+        if (target.dataset.direction) {
+          document.querySelectorAll('[data-direction]').forEach((button) => {
+            button.classList.toggle('active', button === target);
+          });
+          document.querySelector('[data-reply-editor]').value = replyDirections[target.dataset.direction];
+        }
+
+        if (target.dataset.language) {
+          document.querySelectorAll('[data-language]').forEach((button) => {
+            button.classList.toggle('active', button === target);
+          });
+          document.querySelectorAll('[data-summary]').forEach((summary) => {
+            summary.classList.toggle('hidden', summary.dataset.summary !== target.dataset.language);
+          });
+        }
+
+        if (target.dataset.postLanguage) {
+          document.querySelectorAll('[data-post-language]').forEach((button) => {
+            button.classList.toggle('active', button === target);
+          });
+          document.querySelectorAll('[data-post-summary]').forEach((summary) => {
+            summary.classList.toggle(
+              'hidden',
+              summary.dataset.postSummary !== target.dataset.postLanguage,
+            );
+          });
+        }
+
+        if (target.dataset.historyLanguage) {
+          document.querySelectorAll('[data-history-language]').forEach((button) => {
+            button.classList.toggle('active', button === target);
+          });
+          document.querySelectorAll('[data-history-summary]').forEach((summary) => {
+            summary.classList.toggle(
+              'hidden',
+              summary.dataset.historySummary !== target.dataset.historyLanguage,
+            );
+          });
+        }
+
+        if (target.dataset.ideaHistoryLanguage) {
+          document.querySelectorAll('[data-idea-history-language]').forEach((button) => {
+            button.classList.toggle('active', button === target);
+          });
+          document.querySelectorAll('[data-idea-history-summary]').forEach((summary) => {
+            summary.classList.toggle(
+              'hidden',
+              summary.dataset.ideaHistorySummary !== target.dataset.ideaHistoryLanguage,
+            );
+          });
+        }
+
+        if (target.dataset.historyVersion) {
+          document.querySelectorAll('[data-history-version]').forEach((button) => {
+            button.classList.toggle('active', button === target);
+            button.setAttribute('aria-selected', String(button === target));
+          });
+          document.querySelectorAll('[data-history-version-panel]').forEach((panel) => {
+            panel.classList.toggle(
+              'hidden',
+              panel.dataset.historyVersionPanel !== target.dataset.historyVersion,
+            );
+          });
+          document.querySelector('[data-history-version-meta]').textContent =
+            historyVersionMeta[target.dataset.historyVersion];
+        }
+
+        if (target.classList.contains('choice-card')) {
+          const group = target.parentElement;
+          group.querySelectorAll('.choice-card').forEach((button) => {
+            button.classList.toggle('active', button === target);
+          });
+        }
+
+        if (target.dataset.createRewrite !== undefined) {
+          const source = document.querySelector('#rewrite-source');
+          const error = document.querySelector('[data-generate-error]');
+          if (!source.value.trim()) {
+            error.classList.remove('hidden');
+            source.focus();
+            return;
+          }
+          error.classList.add('hidden');
+          document.querySelector('[data-generate-compose]').classList.add('hidden');
+          document.querySelector('[data-generate-result]').classList.remove('hidden');
+          showToast('Rewrite saved to History');
+        }
+        if (target.dataset.editSource !== undefined) {
+          document.querySelector('[data-generate-compose]').classList.remove('hidden');
+          document.querySelector('[data-generate-result]').classList.add('hidden');
+        }
+
+        if (target.dataset.newIdeaSearch !== undefined) {
+          showIdeaPanel('loading');
+          window.setTimeout(() => {
+            showIdeaPanel('list');
+            showToast('2 strong ideas found');
+          }, 900);
+        }
+        if (target.dataset.showIdeas !== undefined) showIdeaPanel('list');
+        if (target.dataset.showIdeaFallback !== undefined) showIdeaPanel('fallback');
+        if (target.dataset.createPost !== undefined) {
+          showIdeaPanel('post');
+          showToast('Post saved to History');
+        }
+        if (target.dataset.createExperiencePost !== undefined) {
+          const lesson = document.querySelector('#experience-lesson');
+          if (!lesson.value.trim()) {
+            lesson.focus();
+            showToast('Add one real lesson first');
+            return;
+          }
+          showIdeaPanel('experience');
+          showToast('Experience post saved to History');
+        }
+        if (target.dataset.backToIdeas !== undefined) showIdeaPanel('list');
+        if (target.dataset.backToLesson !== undefined) showIdeaPanel('fallback');
+
+        if (target.dataset.requestDelete !== undefined) {
+          pendingHistoryDelete = target.closest('[data-history-type]');
+          openDialog('delete-history');
+        }
+        if (target.dataset.clearHistory !== undefined) openDialog('clear-history');
+        if (target.dataset.restore !== undefined) showToast('Revision restored as current');
+        if (target.dataset.checkConnections !== undefined) showToast('Gemini and Groq are ready');
+        if (target.dataset.restoreDefaults !== undefined) showToast('Research defaults restored');
+        if (target.dataset.addSample !== undefined) showToast('Writing sample field added');
+
+        if (target.dataset.toggleSecret) {
+          const input = document.getElementById(target.dataset.toggleSecret);
+          const showing = input.type === 'text';
+          input.type = showing ? 'password' : 'text';
+          target.textContent = showing ? 'Show key' : 'Hide key';
+        }
+
+        if (target.dataset.dialogConfirm !== undefined) {
+          const action = document.querySelector('[data-overlay="dialog"]').dataset.dialogAction;
+          closeOverlays();
+          if (action === 'delete-history' && pendingHistoryDelete) {
+            pendingHistoryDelete.remove();
+            pendingHistoryDelete = null;
+            filterHistory();
+            showToast('History item deleted');
+          } else if (action === 'clear-history') {
+            document.querySelectorAll('[data-history-type]').forEach((item) => item.remove());
+            filterHistory();
+            showToast('All History cleared');
+          } else if (action === 'schedule') {
+            showToast('Scheduling preview only · no schedule created');
+          } else {
+            showToast(`${target.textContent.trim()} complete`);
+          }
+        }
+      });
+
+      document.querySelectorAll('[data-overlay]').forEach((overlay) => {
+        overlay.addEventListener('click', (event) => {
+          if (event.target === overlay) closeOverlays();
+        });
+      });
+
+      document.querySelector('[data-history-search]').addEventListener('input', filterHistory);
+      document.querySelector('[data-history-filter]').addEventListener('change', filterHistory);
+      document.querySelector('[data-retention]').addEventListener('change', () => {
+        openDialog('retention');
+      });
+
+      document.querySelectorAll('[data-scenario]').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('[data-scenario]').forEach((item) => {
+            item.classList.toggle('active', item === button);
+          });
+          const scenario = button.dataset.scenario;
+          if (scenario === 'share') {
+            showScreen('reply');
+            openOverlay('share');
+          } else {
+            closeOverlays();
+            showScreen(scenario);
+            if (scenario === 'setup') showSetupStep(1);
+            if (scenario === 'idea') showIdeaPanel('list');
+          }
+        });
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeOverlays();
+      });
+
+      const initialScreen = new URL(window.location.href).searchParams.get('screen');
+      if (initialScreen && document.querySelector(`[data-screen="${initialScreen}"]`)) {
+        showScreen(initialScreen);
+        if (initialScreen === 'setup') showSetupStep(1);
+      }
+      const initialReplyState = new URL(window.location.href).searchParams.get('replyState');
+      if (initialReplyState) showReplyState(initialReplyState);
+    </script>
+  </body>
+</html>

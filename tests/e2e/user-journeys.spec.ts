@@ -31,19 +31,19 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => context?.close());
 
-test('a writer can compose a rewrite, choose a custom goal, and resume after reopening', async () => {
+test('a writer can refine pasted content, choose a custom goal, and resume after reopening', async () => {
   const session = visualSession('generate');
   session.activeRecordId = undefined;
   session.generateCompose = { original: '', goal: 'clearer', customGoal: '' };
   await seedState(visualAppData(), session);
 
-  await page.getByRole('button', { name: 'Generate rewrite' }).click();
+  await page.getByRole('button', { name: 'Refine content' }).click();
   await expect(page.getByRole('alert')).toContainText('Paste between 1 and 12,000 characters');
 
   await page
-    .getByLabel('Content to rewrite')
+    .getByLabel('Content to refine')
     .fill('The migration worked, but our review did not explain which boundary carried the risk.');
-  await page.getByLabel('Rewrite goal').click();
+  await page.getByLabel('Refinement goal').click();
   await page.getByRole('option', { name: 'Custom goal' }).click();
   await page.getByLabel('Custom goal').fill('Make the trade-off explicit and keep it concise.');
 
@@ -57,27 +57,27 @@ test('a writer can compose a rewrite, choose a custom goal, and resume after reo
     });
 
   await reload();
-  await expect(page.getByLabel('Content to rewrite')).toHaveValue(
+  await expect(page.getByLabel('Content to refine')).toHaveValue(
     'The migration worked, but our review did not explain which boundary carried the risk.',
   );
-  await expect(page.getByLabel('Rewrite goal')).toContainText('Custom goal');
+  await expect(page.getByLabel('Refinement goal')).toContainText('Custom goal');
   await expect(page.getByLabel('Custom goal')).toHaveValue(
     'Make the trade-off explicit and keep it concise.',
   );
 });
 
-test('a writer with validated credentials can complete a generated rewrite', async () => {
+test('a writer with validated credentials can complete a refinement', async () => {
   const session = visualSession('generate');
   session.activeRecordId = undefined;
   await seedState(visualAppData(), session);
   await seedCredentials();
   await page
-    .getByLabel('Content to rewrite')
+    .getByLabel('Content to refine')
     .fill('The review worked, but the trade-off remained implicit.');
-  await page.getByRole('button', { name: 'Generate rewrite' }).click();
+  await page.getByRole('button', { name: 'Refine content' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Your rewrite' })).toBeVisible();
-  await expect(page.getByLabel('Editable rewrite')).toHaveValue(
+  await expect(page.getByRole('heading', { name: 'Your refined version' })).toBeVisible();
+  await expect(page.getByLabel('Editable refinement')).toHaveValue(
     'The review succeeded, but its trade-off remained implicit.',
   );
   await expect
@@ -85,6 +85,103 @@ test('a writer with validated credentials can complete a generated rewrite', asy
       async () => (await readApp()).history.filter((record) => record.type === 'rewrite').length,
     )
     .toBe(2);
+});
+
+test('a writer can confirm a captured LinkedIn post and create a profile-grounded version', async () => {
+  const session = visualSession('generate');
+  session.activeRecordId = undefined;
+  session.refinement = {
+    status: 'review',
+    requestId: '20000000-0000-4000-8000-000000000001',
+    tabId: 1,
+    frameId: 0,
+    context: {
+      schemaVersion: 1,
+      extractionVersion: 'test-v1',
+      surface: 'feed',
+      author: 'Maya Chen',
+      postText:
+        'Architecture decisions become expensive when their assumptions outlive the context that created them.',
+      discussion: [],
+      responseTarget: {
+        type: 'post',
+        author: 'Maya Chen',
+        text: 'Architecture decisions become expensive when their assumptions outlive the context that created them.',
+      },
+      excerpt:
+        'Architecture decisions become expensive when their assumptions outlive the context that created them.',
+      wordCount: 13,
+      extractedAt: '2026-07-26T10:00:00.000Z',
+    },
+    experiencePerspective: '',
+    experienceConfirmed: false,
+    retainSourceLink: false,
+    capturedAt: '2026-07-26T10:00:00.000Z',
+  };
+  await seedState(visualAppData(), session);
+  await seedCredentials();
+
+  await expect(
+    page.getByRole('heading', { name: 'Review the source and your lens' }),
+  ).toBeVisible();
+  await page
+    .getByLabel('Experience perspective')
+    .fill('I used reversible decision records during a TypeScript migration.');
+  const experienceConfirmation = page.getByLabel(
+    /I confirm Thoughtline may use only the experience/u,
+  );
+  await experienceConfirmation.check();
+  await expect(experienceConfirmation).toHaveCSS('accent-color', 'rgb(54, 95, 145)');
+  const sourceLinkSwitch = page.getByRole('switch', { name: 'Keep original source link' });
+  await expect(sourceLinkSwitch).not.toBeChecked();
+  await sourceLinkSwitch.click();
+  await expect(sourceLinkSwitch).toBeChecked();
+  const createVersion = page.getByRole('button', { name: 'Create my version' });
+  await expect(createVersion).toBeEnabled();
+  await createVersion.click();
+  const sourceLinkInput = page.getByLabel(/Original LinkedIn post link/u);
+  await expect(sourceLinkInput).toBeFocused();
+  await expect(page.getByRole('alert')).toContainText('Paste a complete LinkedIn post');
+  await sourceLinkInput.fill('https://www.linkedin.com/feed/update/urn:li:activity:123/?trk=feed');
+  await createVersion.click();
+
+  await expect(page.getByRole('heading', { name: 'Your version is ready' })).toBeVisible();
+  const groundingItem = page.getByRole('button', { name: 'Grounding report' }).locator('../..');
+  const sourceItem = page
+    .getByRole('button', { name: 'Original source and provenance' })
+    .locator('../..');
+  const [groundingBox, sourceBox] = await Promise.all([
+    groundingItem.boundingBox(),
+    sourceItem.boundingBox(),
+  ]);
+  expect(groundingBox).not.toBeNull();
+  expect(sourceBox).not.toBeNull();
+  expect(sourceBox!.y - (groundingBox!.y + groundingBox!.height)).toBeGreaterThanOrEqual(11);
+  await expect(page.getByLabel('Editable refined post')).toHaveValue(
+    /The review succeeded, but its trade-off remained implicit\.[\s\S]*https:\/\/www\.linkedin\.com\/feed\/update\/urn:li:activity:123\//u,
+  );
+  await expect
+    .poll(async () => {
+      const result = (await readApp()).history.find(
+        (record) => record.type === 'rewrite' && record.mode === 'context',
+      );
+      return result?.type === 'rewrite'
+        ? {
+            author: result.source?.author,
+            experience: result.experiencePerspective,
+            retained: result.retainSourceLink,
+            hasAttribution: result.currentText.includes(
+              'https://www.linkedin.com/feed/update/urn:li:activity:123/',
+            ),
+          }
+        : null;
+    })
+    .toEqual({
+      author: 'Maya Chen',
+      experience: 'I used reversible decision records during a TypeScript migration.',
+      retained: true,
+      hasAttribution: true,
+    });
 });
 
 test('a writer can turn a real lesson into an AI-assisted evergreen post', async () => {
@@ -183,7 +280,7 @@ test('a writer can edit a sourced idea post and reopen the saved draft', async (
 test('a writer can search, filter, cancel deletion, and delete one History item', async () => {
   await seed('history');
   await page.getByLabel('Filter History').click();
-  await page.getByRole('option', { name: 'Rewrites' }).click();
+  await page.getByRole('option', { name: 'Refinements' }).click();
   const deleteRewrite = page.getByRole('button', {
     name: 'Delete Typescript makes boundary validation important.',
   });
@@ -281,12 +378,18 @@ async function installProviderRoutes(browserContext: BrowserContext) {
       return;
     }
     const body = route.request().postDataJSON() as {
+      systemInstruction?: { parts?: Array<{ text?: string }> };
       generationConfig?: { responseFormat?: { text?: { schema?: { properties?: object } } } };
     };
     const properties = body.generationConfig?.responseFormat?.text?.schema?.properties ?? {};
+    const systemInstruction = body.systemInstruction?.parts?.map(({ text }) => text).join('') ?? '';
     const output =
       'rewrite' in properties
-        ? { rewrite: 'The review succeeded, but its trade-off remained implicit.' }
+        ? {
+            rewrite: systemInstruction.includes('Use the source post only as raw material')
+              ? 'Your post offers a useful analysis of architecture decisions.'
+              : '**The review succeeded**, but its trade-off remained implicit.',
+          }
         : 'text' in properties
           ? { text: 'A fresh grounded reply for the selected direction.' }
           : {

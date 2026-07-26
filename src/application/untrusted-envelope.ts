@@ -17,6 +17,7 @@ const envelopeSchema = z.object({
   workflow: z.enum([
     'reply',
     'rewrite',
+    'refinement',
     'ideas',
     'post',
     'profile',
@@ -68,6 +69,73 @@ export function rewriteEnvelope(
     profile,
     ...(learned.acceptedSummary ? { learnedPreferences: learned.acceptedSummary } : {}),
     instruction: normalizeUntrustedText(instruction),
+  });
+}
+
+export function refinementEnvelope(
+  context: PostContext,
+  experiencePerspective: string,
+  retainSourceLink: boolean,
+  profile: WritingProfile,
+  learned: LearnedPreferences,
+): z.infer<typeof envelopeSchema> {
+  const safeContext = postContextSchema.parse(normalizeDeep(context));
+  const experience = normalizeUntrustedText(experiencePerspective);
+  if (experience.length > 2_000) {
+    throw new AppError('invalid-input', 'Keep the experience perspective under 2,000 characters.');
+  }
+  assertContextBudget([
+    safeContext.postText,
+    experience,
+    profile.styleGuide,
+    ...profile.writingSamples,
+  ]);
+  return envelopeSchema.parse({
+    boundary: 'untrusted-content',
+    workflow: 'refinement',
+    source: {
+      post: {
+        surface: safeContext.surface,
+        author: safeContext.author,
+        postText: safeContext.postText,
+        ...(safeContext.postPermalink ? { postPermalink: safeContext.postPermalink } : {}),
+        ...(safeContext.reactionSummary ? { reactionSummary: safeContext.reactionSummary } : {}),
+        ...(safeContext.linkPreview ? { linkPreview: safeContext.linkPreview } : {}),
+        excerpt: safeContext.excerpt,
+        wordCount: safeContext.wordCount,
+        extractedAt: safeContext.extractedAt,
+      },
+      experiencePerspective: experience,
+      retainSourceLink: retainSourceLink && Boolean(safeContext.postPermalink),
+    },
+    profile,
+    ...(learned.acceptedSummary ? { learnedPreferences: learned.acceptedSummary } : {}),
+  });
+}
+
+export function refinementRepairEnvelope(
+  context: PostContext,
+  candidate: string,
+  experiencePerspective: string,
+  retainSourceLink: boolean,
+  profile: WritingProfile,
+  learned: LearnedPreferences,
+): z.infer<typeof envelopeSchema> {
+  const base = refinementEnvelope(
+    context,
+    experiencePerspective,
+    retainSourceLink,
+    profile,
+    learned,
+  );
+  const normalizedCandidate = normalizeUntrustedText(candidate);
+  assertContextBudget([JSON.stringify(base.source), normalizedCandidate]);
+  return envelopeSchema.parse({
+    ...base,
+    source: {
+      ...(base.source as Record<string, unknown>),
+      candidateDraft: normalizedCandidate,
+    },
   });
 }
 

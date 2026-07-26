@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { ActiveTab } from '../../domain/schemas';
 import { cn } from '../lib/cn';
 import { AppHeader } from './brand';
 
 const NAV_ITEMS: Array<{ id: ActiveTab; label: string }> = [
   { id: 'reply', label: 'Reply' },
-  { id: 'generate', label: 'Generate' },
+  { id: 'generate', label: 'Refine' },
   { id: 'idea', label: 'Idea' },
   { id: 'history', label: 'History' },
   { id: 'settings', label: 'Settings' },
@@ -18,6 +18,7 @@ interface AppShellProps {
   savedLabel?: string | undefined;
   savedStatusLabel?: string | undefined;
   showNavigation?: boolean | undefined;
+  contentKey?: string | undefined;
 }
 
 export function AppShell({
@@ -27,11 +28,18 @@ export function AppShell({
   savedLabel,
   savedStatusLabel,
   showNavigation = true,
+  contentKey,
 }: AppShellProps) {
+  const scrollRegion = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRegion.current?.scrollTo({ top: 0 });
+  }, [contentKey]);
+
   return (
     <div className="mx-auto grid h-dvh min-h-[620px] w-full min-w-80 max-w-[400px] grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-rule bg-canvas font-body text-ink shadow-panel">
       <div
         key={activeTab}
+        ref={scrollRegion}
         data-sidepanel-scroll
         className="motion-view min-w-0 overflow-y-auto [scrollbar-color:#b8c5d4_transparent] [scrollbar-width:thin]"
       >

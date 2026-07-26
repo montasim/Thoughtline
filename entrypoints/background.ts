@@ -12,6 +12,8 @@ import { createId } from '../src/shared/id';
 const CONTENT_SCRIPT_ID = 'thoughtline-linkedin';
 const ROOT_MENU_ID = 'thoughtline-root';
 const CONTEXT_MENU_ID = 'thoughtline-draft-reply';
+const REFINE_MENU_ID = 'thoughtline-refine-post';
+const CALIBRATION_ROOT_MENU_ID = 'thoughtline-calibrate';
 const CALIBRATION_MENU_IDS = {
   'thoughtline-calibrate-local-post': { mode: 'local', kind: 'post' },
   'thoughtline-calibrate-local-comment': { mode: 'local', kind: 'comment' },
@@ -40,7 +42,9 @@ export default defineBackground(() => {
       typeof info.menuItemId === 'string' && info.menuItemId in CALIBRATION_MENU_IDS
         ? CALIBRATION_MENU_IDS[info.menuItemId as keyof typeof CALIBRATION_MENU_IDS]
         : null;
-    if (info.menuItemId !== CONTEXT_MENU_ID && !calibration) return;
+    const isReply = info.menuItemId === CONTEXT_MENU_ID;
+    const isRefinement = info.menuItemId === REFINE_MENU_ID;
+    if (!isReply && !isRefinement && !calibration) return;
     void chrome.sidePanel.open({ tabId });
     void ready.then(async () => {
       if (calibration) {
@@ -63,10 +67,34 @@ export default defineBackground(() => {
         storageRepository.getJobLease(),
         storageRepository.loadSession(),
       ]);
-      if (lease || session.analysis.status === 'pending' || session.analysis.status === 'running') {
+      if (
+        lease ||
+        session.analysis.status === 'pending' ||
+        session.analysis.status === 'running' ||
+        session.refinement.status === 'pending' ||
+        session.refinement.status === 'running'
+      ) {
         return;
       }
       const requestId = createId();
+      if (isRefinement) {
+        await storageRepository.updateSession((session) => {
+          const next = {
+            ...session,
+            activeTab: 'generate' as const,
+            refinement: {
+              status: 'pending',
+              requestId,
+              tabId,
+              frameId,
+              requestedAt: new Date().toISOString(),
+            } as const,
+          };
+          delete next.activeRecordId;
+          return next;
+        });
+        return;
+      }
       await storageRepository.updateSession((session) => ({
         ...session,
         activeTab: 'reply',
@@ -111,7 +139,10 @@ function scheduleIntegration(): Promise<void> {
 }
 
 async function syncLinkedInIntegration(): Promise<void> {
-  const allowed = await chrome.permissions.contains({ origins: [LINKEDIN_ORIGIN] });
+  const [allowed, app] = await Promise.all([
+    chrome.permissions.contains({ origins: [LINKEDIN_ORIGIN] }),
+    storageRepository.loadAppData(),
+  ]);
   const registrations = await chrome.scripting.getRegisteredContentScripts({
     ids: [CONTENT_SCRIPT_ID],
   });
@@ -139,41 +170,58 @@ async function syncLinkedInIntegration(): Promise<void> {
   await chrome.contextMenus.removeAll();
   if (allowed) {
     chrome.contextMenus.create({
-      id: CONTEXT_MENU_ID,
-      title: 'Draft a reply with Thoughtline',
+      id: ROOT_MENU_ID,
+      title: 'Thoughtline',
       contexts: ['all'],
       documentUrlPatterns: [LINKEDIN_ORIGIN],
     });
     chrome.contextMenus.create({
-      id: ROOT_MENU_ID,
+      id: CONTEXT_MENU_ID,
+      parentId: ROOT_MENU_ID,
+      title: 'Draft a reply with Thoughtline',
+      contexts: ['all'],
+      documentUrlPatterns: [LINKEDIN_ORIGIN],
+    });
+    if (app.settings.contextRefinementEnabled) {
+      chrome.contextMenus.create({
+        id: REFINE_MENU_ID,
+        parentId: ROOT_MENU_ID,
+        title: 'Refine the post to make your own',
+        contexts: ['all'],
+        documentUrlPatterns: [LINKEDIN_ORIGIN],
+      });
+    }
+    chrome.contextMenus.create({
+      id: CALIBRATION_ROOT_MENU_ID,
+      parentId: ROOT_MENU_ID,
       title: 'Calibrate Thoughtline',
       contexts: ['all'],
       documentUrlPatterns: [LINKEDIN_ORIGIN],
     });
     chrome.contextMenus.create({
       id: 'thoughtline-calibrate-local-post',
-      parentId: ROOT_MENU_ID,
+      parentId: CALIBRATION_ROOT_MENU_ID,
       title: 'This post — on device',
       contexts: ['all'],
       documentUrlPatterns: [LINKEDIN_ORIGIN],
     });
     chrome.contextMenus.create({
       id: 'thoughtline-calibrate-local-comment',
-      parentId: ROOT_MENU_ID,
+      parentId: CALIBRATION_ROOT_MENU_ID,
       title: 'This comment — on device',
       contexts: ['all'],
       documentUrlPatterns: [LINKEDIN_ORIGIN],
     });
     chrome.contextMenus.create({
       id: 'thoughtline-calibrate-ai-post',
-      parentId: ROOT_MENU_ID,
+      parentId: CALIBRATION_ROOT_MENU_ID,
       title: 'This post — with AI',
       contexts: ['all'],
       documentUrlPatterns: [LINKEDIN_ORIGIN],
     });
     chrome.contextMenus.create({
       id: 'thoughtline-calibrate-ai-comment',
-      parentId: ROOT_MENU_ID,
+      parentId: CALIBRATION_ROOT_MENU_ID,
       title: 'This comment — with AI',
       contexts: ['all'],
       documentUrlPatterns: [LINKEDIN_ORIGIN],

@@ -46,7 +46,52 @@ Version 5 now also documents the approved guarded LinkedIn layout-calibration wo
 - a teal evidence-bracket visual that mirrors the temporary LinkedIn outline; and
 - device-local calibrated-layout inspection, removal, and reset controls in Settings.
 
+### Version 6
+
+`simplified-ui-v6.html` preserves every Version 5 screen and interaction while renaming the
+extension’s **Generate** tab to **Refine**. The normal Refine view reshapes content pasted by the
+user. The same tab also receives the new LinkedIn context-menu action **Refine the post to make your
+own**.
+
+The automatic source workflow is not shown during ordinary Refine-tab navigation. It appears only
+after the person invokes the Chrome context-menu action on a rendered LinkedIn post. That workflow:
+
+- captures only the exact rendered post inside the confirmed LinkedIn boundary;
+- requires a source review before AI processing;
+- shows the saved profile, confirmed experience perspective, tone, style guide, and learned
+  preferences used as the writing lens;
+- creates an editable, source-inspired post with a distinct personal perspective;
+- retains the original source link by default and checks for close phrasing or unsupported personal
+  claims;
+- records source provenance, grounding, edits, feedback, and revisions in History; and
+- adds Settings controls for the context-menu action, attribution default, and experience-claim
+  confirmation.
+
+Version 6 is the approved Chrome extension contract. `reference.json` points to this immutable
+reference and the production extension implements its Refine workflow.
+
 The production extension follows the highest prototype version explicitly approved by the user.
+
+## Platform explorations
+
+### Android Version 1
+
+`android-v1.html` is an interactive Android product prototype. It carries the five extension
+workspaces—Reply, Generate, Ideas, History, and Settings—into a 412 × 892 reference device and
+adds a first-time setup walkthrough.
+
+The Android prototype replaces Chrome’s LinkedIn context-menu extraction with an explicit Android
+Share-sheet handoff and a reviewable shared-source packet. Optional visible discussion context must
+be pasted by the user because an Android app cannot read LinkedIn’s private in-app DOM. The
+prototype retains manual publishing, editable drafts, provider fallback, source-native research,
+local history, writing-profile controls, data archives, reviewable learning, and schedule-preview
+surfaces.
+
+The screen-by-screen v5 comparison is recorded in
+[`android-v1-parity.md`](android-v1-parity.md).
+
+This exploration does not change `reference.json`, which continues to identify the approved Version
+6 Chrome extension UI contract.
 
 ## Direct preview links
 
@@ -60,5 +105,18 @@ The prototype supports optional query parameters for visual review without chang
 - `?scene=calibration&calibrationState=evidence`
 - `?scene=calibration&calibrationState=preview`
 - `?scene=calibration&calibrationState=success`
+- `simplified-ui-v6.html?scene=refine&refineState=manual`
+- `simplified-ui-v6.html?scene=refine&refineState=menu`
+- `simplified-ui-v6.html?scene=refine&refineState=review`
+- `simplified-ui-v6.html?scene=refine&refineState=loading`
+- `simplified-ui-v6.html?scene=refine&refineState=success`
+- `simplified-ui-v6.html?scene=refine&refineState=setup`
+- `simplified-ui-v6.html?scene=refine&refineState=no-post`
+- `android-v1.html?screen=reply`
+- `android-v1.html?screen=generate`
+- `android-v1.html?screen=idea`
+- `android-v1.html?screen=history`
+- `android-v1.html?screen=settings`
+- `android-v1.html?screen=setup`
 
 The prototype's visible screen controls remain the primary way to move through states.

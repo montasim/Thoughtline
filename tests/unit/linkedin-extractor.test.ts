@@ -59,8 +59,8 @@ describe('passive LinkedIn post extraction', () => {
 
   it('extracts a company author from the current activity-card entity lockup', () => {
     document.body.innerHTML = `
-      <article class="main-feed-activity-card" data-id="main-feed-card" data-activity-urn="urn:li:activity:456">
-        <div data-test-id="main-feed-activity-card__entity-lockup">
+      <article class="main-feed-activity-card" data-id="main-feed-card">
+        <div data-activity-urn="urn:li:activity:456" data-test-id="main-feed-activity-card__entity-lockup">
           <a href="https://www.linkedin.com/company/acme/">
             <img alt="View organization page for Acme Labs" />
           </a>
@@ -75,6 +75,27 @@ describe('passive LinkedIn post extraction', () => {
 
     expect(context.author).toBe('Acme Labs');
     expect(context.responseTarget).toMatchObject({ type: 'post', author: 'Acme Labs' });
+    expect(context.postPermalink).toBe('https://www.linkedin.com/feed/update/urn:li:activity:456/');
+  });
+
+  it('recovers an encoded activity URN from a modern nested tracking attribute', () => {
+    document.body.innerHTML = `
+      <div data-finite-scroll-hotkey-item>
+        <article
+          data-view-tracking-scope="%7B%22entityUrn%22%3A%22urn%3Ali%3Afsd_update%3A%28urn%3Ali%3Aactivity%3A987654321%2CUNKNOWN%29%22%7D"
+        >
+          <span class="update-components-actor__name">Samira Noor</span>
+          <div class="update-components-text">A modern LinkedIn card with encoded tracking data.</div>
+        </article>
+      </div>`;
+    const target = document.querySelector('.update-components-text');
+    if (!target) throw new Error('Fixture target missing');
+
+    const context = extractLinkedInPost(target, 'https://www.linkedin.com/feed/');
+
+    expect(context.postPermalink).toBe(
+      'https://www.linkedin.com/feed/update/urn:li:activity:987654321/',
+    );
   });
 
   it('extracts a person author when the profile link owns the visible name directly', () => {

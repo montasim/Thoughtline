@@ -1,17 +1,17 @@
 # Thoughtline
 
-Thoughtline is a user-controlled Chrome side-panel extension for understanding a selected LinkedIn conversation and shaping writing in your own voice. It creates four reply directions, rewrites pasted content, researches post ideas, and keeps editable work history. It never publishes for you.
+Thoughtline is a user-controlled Chrome side-panel extension for understanding a selected LinkedIn conversation and shaping writing in your own voice. It creates four reply directions, refines pasted or selected content, researches post ideas, and keeps editable work history. It never publishes for you.
 
 > Status: functional development release for Chrome 120+. Scheduling is a visual preview only; it does not run jobs or send email until the separate scheduling API is integrated.
 
-## Latest release: v0.1.3
+## Latest release: v0.2.0
 
-- Rebuilt the extension as **Thoughtline**, with a five-view side-panel workspace for Reply, Generate, Ideas, History, and Settings.
-- Added staged LinkedIn context analysis, four independently editable reply directions, sourced idea research, experience-based post drafting, and editable work history.
-- Added explicit AI consent, on-demand host permissions, encrypted provider credentials, incognito-safe storage, data import/export, storage recovery, and reviewable personalization.
-- Added Gemini-first generation with one Groq fallback, typed provider and source adapters, bounded untrusted-content envelopes, and guarded LinkedIn layout calibration.
-- Added production onboarding and Terms views, responsive and accessible UI coverage, immutable visual baselines, real-writer journey tests, and AI response-quality checks.
-- GitHub releases now include the WXT Chrome ZIP and `SHA256SUMS.txt` after the complete static, unit, build, browser, visual, and accessibility gates pass.
+- Renamed **Generate** to **Refine** for user-provided content.
+- Added **Refine the post to make your own** to Thoughtline’s LinkedIn context menu.
+- Added source-and-lens review, explicit experience confirmation, optional source-link attribution, and profile-, tone-, style-, and preference-grounded post creation.
+- Produces standalone, copy-ready plain text with Markdown cleanup and focused correction passes when a provider returns reply-style or overly close content.
+- Added source provenance, grounding details, feedback, edits, revisions, and new refinement controls in Settings and History.
+- Improved LinkedIn permalink recovery with a validated manual-link fallback when the rendered card exposes no usable URL.
 
 ## Product tour
 
@@ -24,12 +24,13 @@ The screenshots above are captured from the production extension at the canonica
 ## What works
 
 - Right-click one already-rendered LinkedIn post, comment, or reply and choose **Draft a reply with Thoughtline**.
+- Right-click one already-rendered LinkedIn post and choose **Thoughtline → Refine the post to make your own** to create a distinct post through your confirmed perspective.
 - Passively extract only that selected post context and its visible discussion. Thoughtline does not click, scroll, expand, fetch LinkedIn pages, or read unrelated posts.
 - Generate bilingual post summaries and four independently editable reply directions: Insight, Question, Extend, and Challenge.
-- Paste content into **Generate** and rewrite it in the configured voice.
+- Paste content into **Refine** and reshape it in the configured voice.
 - Search Hacker News, DEV, Medium, Lobsters, and Stack Overflow when enabled, with at most one idea selected from each source. Every source reference links to the original item.
 - Build an editable LinkedIn post from a sourced idea or a real experience supplied by the user.
-- Search, filter, edit, revise, delete, clear, retain, export, and import Reply, Rewrite, and Idea history.
+- Search, filter, edit, revise, delete, clear, retain, export, and import Reply, Refine, and Idea history.
 - Configure writing language, length, tone, custom instructions, writing samples, and a reviewable style guide.
 - Derive an editable profile suggestion locally from the user's own LinkedIn PDF export; the raw PDF is not retained.
 - Learn inspectable writing preferences only from explicit ratings, selected directions, and substantial edits.
@@ -77,6 +78,20 @@ Provider keys are encrypted at rest with AES-256-GCM and a non-exportable device
 6. Paste and publish manually on LinkedIn.
 
 For a post target, visible rendered threads inside that post are included. For a comment or reply target, only its rendered parent thread is included. Hidden, collapsed, paginated, and unloaded content is excluded.
+
+## Refine workflow
+
+For pasted content, open **Refine**, provide the text, choose a goal, and review the editable result.
+
+For a rendered LinkedIn post:
+
+1. Right-click inside the main post and choose **Thoughtline → Refine the post to make your own**.
+2. Review the exact rendered source, saved profile, topics, audience, tone, style guide, and accepted preferences.
+3. Add an experience perspective or explicitly confirm that the draft must make no personal experience claim.
+4. Choose whether to keep the original LinkedIn link, then create your version.
+5. Review the editable post, grounding report, and source provenance before copying and publishing manually.
+
+Comments and replies remain part of the Reply workflow. The Refine action accepts only the main rendered post boundary and never loads adjacent posts or hidden content.
 
 ## Privacy and safety
 
@@ -156,7 +171,7 @@ The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md)
 Update the package and extension version, refresh `.github/RELEASE_NOTES.md`, and push a matching `v*` tag:
 
 ```bash
-VERSION=v0.1.3
+VERSION=v0.2.0
 git tag "$VERSION"
 git push origin "$VERSION"
 ```

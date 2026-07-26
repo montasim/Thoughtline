@@ -52,6 +52,11 @@
     min-width: 320px;
     background: var(--color-canvas);
   }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: var(--color-primary);
+  }
 }
 
 @keyframes editor-action-pop {

@@ -93,10 +93,7 @@ const LINK_PREVIEW_SELECTORS = [
   '.feed-shared-article__description',
   '.feed-shared-external-video__meta',
 ] as const;
-const PERMALINK_SELECTORS = [
-  'a[href*="/feed/update/urn:li:activity:"]',
-  'a[href*="/posts/"]',
-] as const;
+const PERMALINK_SELECTORS = ['a[href*="/feed/update/"]', 'a[href*="/posts/"]'] as const;
 
 interface ClassifiedComment {
   root: Element;
@@ -505,16 +502,48 @@ function findPermalink(root: Element, locationHref: string): string | undefined 
       if (candidate) return candidate;
     }
   }
+  const activityUrn = findActivityUrn(root);
+  if (activityUrn) {
+    return canonicalLinkedInUrl(`https://www.linkedin.com/feed/update/${activityUrn}/`);
+  }
   if (detectSurface(locationHref) === 'post-detail') return canonicalLinkedInUrl(locationHref);
+  return undefined;
+}
+
+function findActivityUrn(root: Element): string | undefined {
+  for (const candidate of [root, ...root.querySelectorAll('*')]) {
+    for (const attribute of candidate.attributes) {
+      let value = attribute.value;
+      for (let pass = 0; pass < 3; pass += 1) {
+        const match = value.match(/urn:li:activity:\d+/u);
+        if (match?.[0]) return match[0];
+        try {
+          const decoded = decodeURIComponent(value);
+          if (decoded === value) break;
+          value = decoded;
+        } catch {
+          break;
+        }
+      }
+    }
+  }
   return undefined;
 }
 
 function canonicalLinkedInUrl(value: string): string | undefined {
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:' || url.hostname !== 'www.linkedin.com') return undefined;
-    if (!url.pathname.includes('/feed/update/') && !url.pathname.includes('/posts/'))
+    const hostname = url.hostname.toLocaleLowerCase();
+    if (
+      url.protocol !== 'https:' ||
+      (hostname !== 'linkedin.com' && !hostname.endsWith('.linkedin.com'))
+    ) {
       return undefined;
+    }
+    const pathname = decodeURIComponent(url.pathname);
+    if (!pathname.includes('/feed/update/') && !pathname.includes('/posts/')) return undefined;
+    url.hostname = 'www.linkedin.com';
+    url.pathname = pathname;
     url.search = '';
     url.hash = '';
     return url.toString();

@@ -10,7 +10,7 @@ export function SwitchControl({
   return (
     <Switch.Root
       className={cn(
-        'motion-switch relative shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-proof',
+        'motion-switch relative shrink-0 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-proof',
         size === 'mini'
           ? 'group h-7 w-8'
           : 'h-6 w-[42px] rounded-full border border-field bg-tint transition-colors data-[state=checked]:border-primary data-[state=checked]:bg-primary',

@@ -1,12 +1,12 @@
-## What’s new in v0.1.3
+## What’s new in v0.2.0
 
-- Rebuilt the extension as **Thoughtline**, with dedicated Reply, Generate, Ideas, History, and Settings views in a responsive Chrome side panel.
-- Added staged LinkedIn analysis with bilingual summaries and four independently editable reply directions: Insight, Question, Extend, and Challenge.
-- Added sourced idea research across Hacker News, DEV, Medium, Lobsters, and Stack Overflow, plus editable posts based on research or the user's own experience.
-- Added searchable and editable work history, data import and export, storage recovery, session workspace restoration, and incognito-safe persistence boundaries.
-- Added explicit AI-processing consent, on-demand site permissions, AES-256-GCM credential encryption, reviewable writing preferences, and local LinkedIn PDF profile extraction.
-- Added Gemini-first generation with one Groq fallback, typed provider and source boundaries, untrusted-content isolation, and guarded LinkedIn layout calibration.
-- Added production onboarding and Terms views together with unit, real-writer journey, visual-regression, responsive, accessibility, and AI response-quality coverage.
+- Renamed **Generate** to **Refine** and kept pasted-content refinement in the same five-view side-panel workspace.
+- Added **Thoughtline → Refine the post to make your own** to LinkedIn’s context menu. It captures only the confirmed rendered post and opens a source-and-lens review before any AI request.
+- Added explicit personal-experience confirmation together with saved profile, topic, audience, tone, style-guide, and learned-preference grounding.
+- Produces a standalone post in the user’s voice instead of a reply to the source author. Provider output is converted to copy-ready plain text, and focused correction passes repair reply-style or overly close drafts.
+- Added optional source attribution with improved LinkedIn permalink recovery and a validated manual-link fallback when the rendered card exposes no usable URL.
+- Added grounding reports and original-source provenance to editable Refine results and History, plus Settings controls for context refinement, attribution defaults, and personal-claim confirmation.
+- Added v6 visual references, real-browser refinement journeys, modern LinkedIn DOM fixtures, plain-text response tests, and Android product-exploration artifacts.
 
 ## Install in Chrome
 

@@ -49,6 +49,11 @@ test('keeps the production setup geometry aligned with the approved prototype', 
   const prototype = await context.newPage();
   await prototype.setViewportSize({ width: 1000, height: 850 });
   await prototype.goto(pathToFileURL(reference.absolutePath).href);
+  await prototype.locator('#scene-setup').evaluate((element) => {
+    if (!(element instanceof HTMLInputElement)) throw new Error('Setup control is unavailable.');
+    element.checked = true;
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   await prototype.evaluate(() => document.fonts.ready);
 
   const prototypeFrame = prototype.locator('.setup-frame:visible');

@@ -20,6 +20,34 @@ export function normalizeUntrustedText(value: string): string {
     .trim();
 }
 
+export function plainTextFromMarkdown(value: string): string {
+  const plain = normalizeUntrustedText(value)
+    .replace(/^[ \t]*(?:```|~~~)[^\n]*$/gmu, '')
+    .replace(/^[ \t]{0,3}(?:[-*_][ \t]*){3,}$/gmu, '')
+    .replace(/!\[([^\]\n]*)\]\([^)]+\)/gu, '$1')
+    .replace(/\[([^\]\n]+)\]\(([^)\s]+)(?:[ \t]+["'][^"']*["'])?\)/gu, '$1 ($2)')
+    .replace(/<((?:https?:\/\/|mailto:)[^>\s]+)>/gu, '$1')
+    .replace(/^[ \t]{0,3}#{1,6}[ \t]+/gmu, '')
+    .replace(/^[ \t]{0,3}>[ \t]?/gmu, '')
+    .replace(/^([ \t]*)[-+*][ \t]+/gmu, '$1• ')
+    .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/gu, '$2')
+    .replace(/~~(?=\S)([\s\S]*?\S)~~/gu, '$1')
+    .replace(/`([^`\n]+)`/gu, '$1')
+    .replace(/(?<![\p{L}\p{N}])([*_])(?=\S)([^*_\n]*?\S)\1(?![\p{L}\p{N}])/gu, '$2')
+    .replace(/\\([\\`*_[\]{}()#+\-.!>])/gu, '$1');
+  return normalizeUntrustedText(plain);
+}
+
+export function hasSourceResponseFraming(value: string): boolean {
+  const normalized = normalizeUntrustedText(value);
+  return [
+    /\b(?:your|the source author's|the original author's)\s+(?:post|list|thread|article|analysis)\b/iu,
+    /আপনার(?:\s+\S+){0,2}\s+(?:পোস্ট|তালিকা|লেখা|বিশ্লেষণ)/u,
+    /আশা করি\s+(?:এই\s+)?বিশ্লেষণ/u,
+    /\b(?:building on|responding to|in response to)\s+(?:this|the|your)\s+(?:post|list|thread|article)\b/iu,
+  ].some((pattern) => pattern.test(normalized));
+}
+
 export function assertContextBudget(parts: readonly string[], maximumCharacters = 80_000): void {
   const size = parts.reduce((total, part) => total + part.length, 0);
   if (size > maximumCharacters) {
@@ -39,6 +67,26 @@ export function hasSubstantialEdit(generated: string, edited: string): boolean {
   const cleanEdited = tokenize(edited);
   const threshold = Math.max(3, Math.ceil(cleanGenerated.length * 0.1));
   return editDistance(cleanGenerated, cleanEdited) >= threshold;
+}
+
+export function hasSharedPhrase(source: string, candidate: string, minimumWords = 8): boolean {
+  const sourceWords = tokenize(source);
+  const candidateWords = tokenize(candidate);
+  if (
+    minimumWords < 1 ||
+    sourceWords.length < minimumWords ||
+    candidateWords.length < minimumWords
+  ) {
+    return false;
+  }
+  const sourcePhrases = new Set<string>();
+  for (let index = 0; index <= sourceWords.length - minimumWords; index += 1) {
+    sourcePhrases.add(sourceWords.slice(index, index + minimumWords).join(' '));
+  }
+  for (let index = 0; index <= candidateWords.length - minimumWords; index += 1) {
+    if (sourcePhrases.has(candidateWords.slice(index, index + minimumWords).join(' '))) return true;
+  }
+  return false;
 }
 
 function tokenize(value: string): string[] {
