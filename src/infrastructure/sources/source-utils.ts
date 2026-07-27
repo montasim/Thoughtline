@@ -16,7 +16,9 @@ export function selectBestCandidate(
   candidates: SourceCandidate[],
   topics: string[],
 ): SourceEvidence | null {
-  const normalizedTopics = topics.map((topic) => normalizeUntrustedText(topic).toLocaleLowerCase());
+  const normalizedTopics = topics
+    .map((topic) => normalizeUntrustedText(topic).toLocaleLowerCase())
+    .filter(Boolean);
   const ranked = candidates
     .map((candidate) => ({ candidate, score: scoreCandidate(candidate, normalizedTopics) }))
     .filter(({ score }) => score > 0)
@@ -45,5 +47,21 @@ function scoreCandidate(candidate: SourceCandidate, topics: string[]): number {
   const haystack = normalizeUntrustedText(
     [candidate.title, candidate.excerpt, ...(candidate.tags ?? [])].join(' '),
   ).toLocaleLowerCase();
-  return topics.reduce((score, topic) => score + (topic && haystack.includes(topic) ? 1 : 0), 0);
+  const haystackTokens = new Set(haystack.match(/[\p{L}\p{N}]+/gu) ?? []);
+  return topics.reduce((score, topic) => {
+    const phraseScore = haystack.includes(topic) ? 8 : 0;
+    const tokenScore = topicTokens(topic).reduce(
+      (total, token) => total + (haystackTokens.has(token) ? (token.length <= 2 ? 1 : 2) : 0),
+      0,
+    );
+    return score + phraseScore + tokenScore;
+  }, 0);
+}
+
+const TOPIC_STOP_WORDS = new Set(['and', 'for', 'from', 'in', 'of', 'on', 'the', 'to', 'with']);
+
+function topicTokens(topic: string): string[] {
+  return (topic.match(/[\p{L}\p{N}]+/gu) ?? []).filter(
+    (token) => token.length >= 2 && !TOPIC_STOP_WORDS.has(token),
+  );
 }

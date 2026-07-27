@@ -77,8 +77,27 @@ test('a writer with validated credentials can complete a refinement', async () =
   await page.getByRole('button', { name: 'Refine content' }).click();
 
   await expect(page.getByRole('heading', { name: 'Your refined version' })).toBeVisible();
-  await expect(page.getByLabel('Editable refinement')).toHaveValue(
-    'The review succeeded, but its trade-off remained implicit.',
+  const editableRefinement = page.getByLabel('Editable refinement');
+  const refinedText = await editableRefinement.inputValue();
+  expect(refinedText).toContain('The review succeeded, but its trade-off remained implicit.');
+  const manualHashtagCount = refinedText.match(/#[\p{L}\p{N}_]+/gu)?.length ?? 0;
+  expect(manualHashtagCount).toBeGreaterThanOrEqual(5);
+  expect(manualHashtagCount).toBeLessThanOrEqual(10);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: (value: string) => {
+          sessionStorage.setItem('thoughtline.test-clipboard', value);
+          return Promise.resolve();
+        },
+      },
+    });
+  });
+  await page.getByRole('button', { name: 'Copy' }).click();
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('thoughtline.test-clipboard'))).toBe(
+    refinedText,
   );
   await expect
     .poll(
@@ -146,6 +165,7 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
   await createVersion.click();
 
   await expect(page.getByRole('heading', { name: 'Your version is ready' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate image' })).toBeVisible();
   const groundingItem = page.getByRole('button', { name: 'Grounding report' }).locator('../..');
   const sourceItem = page
     .getByRole('button', { name: 'Original source and provenance' })
@@ -157,9 +177,14 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
   expect(groundingBox).not.toBeNull();
   expect(sourceBox).not.toBeNull();
   expect(sourceBox!.y - (groundingBox!.y + groundingBox!.height)).toBeGreaterThanOrEqual(11);
-  await expect(page.getByLabel('Editable refined post')).toHaveValue(
+  const editableContextRefinement = page.getByLabel('Editable refined post');
+  await expect(editableContextRefinement).toHaveValue(
     /The review succeeded, but its trade-off remained implicit\.[\s\S]*https:\/\/www\.linkedin\.com\/feed\/update\/urn:li:activity:123\//u,
   );
+  const contextHashtagCount =
+    (await editableContextRefinement.inputValue()).match(/#[\p{L}\p{N}_]+/gu)?.length ?? 0;
+  expect(contextHashtagCount).toBeGreaterThanOrEqual(5);
+  expect(contextHashtagCount).toBeLessThanOrEqual(10);
   await expect
     .poll(async () => {
       const result = (await readApp()).history.find(
@@ -173,6 +198,7 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
             hasAttribution: result.currentText.includes(
               'https://www.linkedin.com/feed/update/urn:li:activity:123/',
             ),
+            hashtagCount: result.currentText.match(/#[\p{L}\p{N}_]+/gu)?.length ?? 0,
           }
         : null;
     })
@@ -181,6 +207,7 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
       experience: 'I used reversible decision records during a TypeScript migration.',
       retained: true,
       hasAttribution: true,
+      hashtagCount: contextHashtagCount,
     });
 });
 
@@ -383,12 +410,14 @@ async function installProviderRoutes(browserContext: BrowserContext) {
     };
     const properties = body.generationConfig?.responseFormat?.text?.schema?.properties ?? {};
     const systemInstruction = body.systemInstruction?.parts?.map(({ text }) => text).join('') ?? '';
+    const refineHashtags =
+      '#Architecture #SoftwareEngineering #DecisionMaking #TechLeadership #EngineeringCulture';
     const output =
       'rewrite' in properties
         ? {
             rewrite: systemInstruction.includes('Use the source post only as raw material')
               ? 'Your post offers a useful analysis of architecture decisions.'
-              : '**The review succeeded**, but its trade-off remained implicit.',
+              : `**The review succeeded**, but its trade-off remained implicit.\n\n${refineHashtags}`,
           }
         : 'text' in properties
           ? { text: 'A fresh grounded reply for the selected direction.' }

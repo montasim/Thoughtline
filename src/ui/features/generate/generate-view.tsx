@@ -1,7 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ExternalLink, ShieldCheck } from 'lucide-react';
+import {
+  Check,
+  Download,
+  ExternalLink,
+  Eye,
+  Image as ImageIcon,
+  ImagePlus,
+  LoaderCircle,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react';
 import { AppError } from '../../../application/errors';
 import { feedbackAfterEdit, feedbackAfterRating } from '../../../application/feedback';
+import {
+  buildPostIllustrationPrompt,
+  generatePostIllustration,
+} from '../../../application/post-illustration';
+import type { GeneratedImage } from '../../../application/ports/image-generation-provider';
 import { addRevision, refineLinkedInPost, rewriteContent } from '../../../application/workflows';
 import {
   isProfileComplete,
@@ -12,8 +27,13 @@ import {
   type RefinementState,
   type RewriteGoal,
   type RewriteHistoryRecord,
+  type WritingProfile,
 } from '../../../domain/schemas';
-import { hasLinkedInPermission, hasProviderPermissions } from '../../../infrastructure/permissions';
+import {
+  hasLinkedInPermission,
+  hasProviderPermissions,
+  requestImageProviderPermission,
+} from '../../../infrastructure/permissions';
 import { storageRepository } from '../../../infrastructure/storage/chrome-storage';
 import type { RuntimeResponse } from '../../../shared/protocol';
 import { useForegroundJob } from '../../hooks/use-foreground-job';
@@ -26,6 +46,7 @@ import {
 } from '../../primitives/accordion';
 import { Button } from '../../primitives/button';
 import { Card } from '../../primitives/card';
+import { DialogContent, DialogRoot } from '../../primitives/dialog';
 import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
 import { SelectContent, SelectItem, SelectRoot, SelectTrigger } from '../../primitives/select';
@@ -440,6 +461,7 @@ export function GenerateView() {
     return (
       <RefinementResult
         record={contextRecord}
+        profile={app.profile}
         error={job.error}
         running={job.running}
         onAdjust={adjustLens}
@@ -459,6 +481,13 @@ export function GenerateView() {
             },
             contextRecord,
           );
+        }}
+        onOpenSettings={async () => {
+          await storageRepository.updateSession((current) => ({
+            ...current,
+            activeTab: 'settings',
+          }));
+          await refresh();
         }}
         onUpdate={async (next, feedback) => {
           if (chrome.extension.inIncognitoContext) setEphemeral(next);
@@ -835,17 +864,21 @@ function LensRow({ label, value }: { label: string; value: string }) {
 
 function RefinementResult({
   record,
+  profile,
   error,
   running,
   onAdjust,
   onRegenerate,
+  onOpenSettings,
   onUpdate,
 }: {
   record: RewriteHistoryRecord;
+  profile: WritingProfile;
   error: string | null;
   running: boolean;
   onAdjust: () => Promise<void>;
   onRegenerate: () => void;
+  onOpenSettings: () => Promise<void>;
   onUpdate: (record: RewriteHistoryRecord, feedback?: Feedback) => Promise<void>;
 }) {
   const rate = (rating: 'liked' | 'disliked') => {
@@ -907,6 +940,11 @@ function RefinementResult({
           }}
           className="mt-3 min-h-[280px]"
         />
+        <PostIllustrationPanel
+          postText={record.currentText}
+          profile={profile}
+          onOpenSettings={onOpenSettings}
+        />
         <AccordionRoot className="mt-3 space-y-3" type="multiple" defaultValue={['grounding']}>
           <AccordionItem value="grounding">
             <AccordionTrigger>Grounding report</AccordionTrigger>
@@ -947,6 +985,262 @@ function RefinementResult({
         </div>
       </Card>
     </>
+  );
+}
+
+export function PostIllustrationPanel({
+  postText,
+  profile,
+  onOpenSettings,
+}: {
+  postText: string;
+  profile: WritingProfile;
+  onOpenSettings: () => Promise<void>;
+}) {
+  const imageJob = useForegroundJob();
+  const [image, setImage] = useState<GeneratedImage | null>(null);
+  const [sourceText, setSourceText] = useState('');
+  const [promptOverride, setPromptOverride] = useState<string | null>(null);
+  const [usedPrompt, setUsedPrompt] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const suggestedPrompt = buildPostIllustrationPrompt(postText, profile);
+  const imagePrompt = promptOverride ?? suggestedPrompt;
+  const imageIsStale = Boolean(
+    image && (sourceText !== postText || usedPrompt !== imagePrompt.trim()),
+  );
+
+  const generate = async () => {
+    imageJob.setError(null);
+    const prompt = imagePrompt.trim();
+    if (!prompt) {
+      imageJob.setError('Add an image prompt before generating an illustration.');
+      return;
+    }
+    const allowed = await requestImageProviderPermission();
+    if (!allowed) {
+      imageJob.setError('Allow the Cloudflare connection to generate an illustration.');
+      return;
+    }
+    const generated = await imageJob.run((signal) =>
+      generatePostIllustration(postText, signal, prompt),
+    );
+    if (!generated) return;
+    setImage(generated);
+    setSourceText(postText);
+    setUsedPrompt(prompt);
+  };
+
+  const download = () => {
+    if (!image) return;
+    const extension =
+      image.mimeType === 'image/png' ? 'png' : image.mimeType === 'image/webp' ? 'webp' : 'jpg';
+    const anchor = document.createElement('a');
+    anchor.href = image.dataUrl;
+    anchor.download = `thoughtline-post-illustration-${new Date().toISOString().slice(0, 10)}.${extension}`;
+    anchor.click();
+  };
+
+  return (
+    <section
+      className="mt-3 overflow-hidden rounded-lg border border-rule bg-surface"
+      aria-labelledby="post-illustration-title"
+    >
+      <div className="p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <ImagePlus className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <strong
+                id="post-illustration-title"
+                className="block font-display text-[14px] leading-tight tracking-[-0.01em] text-ink"
+              >
+                Visual companion
+              </strong>
+              <p className="mt-0.5 text-[10px] leading-[1.4] text-muted">
+                Create a landscape image for this post.
+              </p>
+            </div>
+          </div>
+          {!image ? (
+            <Button
+              size="compact"
+              variant="primary"
+              className="shrink-0"
+              disabled={imageJob.running || !imagePrompt.trim()}
+              onClick={() => void generate()}
+            >
+              {imageJob.running ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <ImageIcon className="size-4" />
+              )}
+              {imageJob.running ? 'Creating…' : 'Generate image'}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <AccordionRoot type="single" collapsible>
+        <AccordionItem
+          value="image-prompt"
+          className="rounded-none border-x-0 border-b-0 border-rule"
+        >
+          <AccordionTrigger className="min-h-10 px-3 text-[10.5px]">
+            Fine-tune visual direction
+          </AccordionTrigger>
+          <AccordionContent className="bg-soft px-3 pb-3 pt-2.5">
+            <Textarea
+              aria-label="Image generation prompt"
+              className="min-h-[132px] resize-y bg-surface font-body text-[11px] leading-[1.6]"
+              onChange={(event) => setPromptOverride(event.target.value)}
+              value={imagePrompt}
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-[9px] leading-[1.45] text-muted">
+                Advanced: edit the exact instructions sent to the image model.
+              </p>
+              <Button
+                className="min-h-7 shrink-0 px-2 py-1 text-[10px]"
+                disabled={promptOverride === null}
+                onClick={() => setPromptOverride(null)}
+                size="compact"
+                type="button"
+                variant="ghost"
+              >
+                <RefreshCw className="size-3" />
+                Use post prompt
+              </Button>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </AccordionRoot>
+
+      {imageJob.running && !image ? (
+        <div
+          className="mx-3 mb-3 grid aspect-[1.91/1] place-items-center overflow-hidden rounded-lg border border-rule bg-[linear-gradient(115deg,var(--color-tint),var(--color-surface),var(--color-canvas))]"
+          aria-live="polite"
+        >
+          <div className="text-center text-primary">
+            <LoaderCircle className="mx-auto size-5 animate-spin" />
+            <p className="mt-2 font-utility text-[9px] uppercase tracking-[0.1em]">
+              Composing the visual
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {image ? (
+        <div className="border-t border-rule bg-surface p-3">
+          <figure className="overflow-hidden rounded-lg border border-field bg-tint">
+            <figcaption className="flex min-h-9 items-center justify-between gap-2 border-b border-rule bg-tint px-3 py-2 font-utility text-[7.5px] uppercase tracking-[0.08em]">
+              <span className="text-primary">Generated illustration</span>
+              <span className="text-proof">Ready to review</span>
+            </figcaption>
+            <img
+              src={image.dataUrl}
+              alt="AI-generated editorial illustration for the refined post"
+              className="aspect-[1.91/1] w-full object-cover"
+            />
+          </figure>
+          {imageIsStale ? (
+            <p className="mt-2 text-[10px] leading-relaxed text-warning">
+              The post or image prompt changed after this image was created. Generate again to use
+              the latest version.
+            </p>
+          ) : null}
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[9.5px] text-muted">
+              {image.width} × {image.height} · review before posting
+            </span>
+            <div className="flex gap-1">
+              <Button
+                size="icon"
+                variant="secondary"
+                aria-label="Preview generated image"
+                title="Preview"
+                onClick={() => setPreviewOpen(true)}
+              >
+                <Eye className="size-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="secondary"
+                aria-label="Download generated image"
+                title="Download"
+                onClick={download}
+              >
+                <Download className="size-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="secondary"
+                aria-label="Generate another image"
+                title="Generate another"
+                disabled={imageJob.running}
+                onClick={() => void generate()}
+              >
+                {imageJob.running ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+          <details className="mt-2 rounded-lg border border-rule bg-soft">
+            <summary className="cursor-pointer px-3 py-2 font-utility text-[8px] font-[500] uppercase tracking-[0.06em] text-primary">
+              Prompt used for this image
+            </summary>
+            <pre className="max-h-44 overflow-auto whitespace-pre-wrap border-t border-rule px-3 py-2.5 font-mono text-[9px] leading-[1.55] text-ink">
+              {usedPrompt}
+            </pre>
+          </details>
+        </div>
+      ) : null}
+
+      {imageJob.error ? (
+        <div className="flex items-start justify-between gap-3 border-t border-danger/20 bg-danger-bg px-3 py-2.5">
+          <p role="alert" className="text-[10.5px] leading-relaxed text-danger">
+            {imageJob.error}
+          </p>
+          <Button
+            size="compact"
+            variant="secondary"
+            className="shrink-0"
+            onClick={() => void onOpenSettings()}
+          >
+            Settings
+          </Button>
+        </div>
+      ) : null}
+
+      <DialogRoot open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent
+          title="Post illustration"
+          description="Preview the full landscape image before downloading it."
+          className="w-[min(720px,calc(100vw-24px))]"
+        >
+          {image ? (
+            <>
+              <img
+                src={image.dataUrl}
+                alt="Full preview of the generated post illustration"
+                className="w-full rounded-lg border border-rule"
+              />
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-[10px] text-muted">
+                  AI-generated images can contain visual mistakes. Review before sharing.
+                </p>
+                <Button variant="primary" onClick={download}>
+                  <Download className="size-4" />
+                  Download
+                </Button>
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </DialogRoot>
+    </section>
   );
 }
 

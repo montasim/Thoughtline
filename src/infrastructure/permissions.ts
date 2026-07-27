@@ -5,6 +5,7 @@ export const PROVIDER_ORIGINS = [
   'https://generativelanguage.googleapis.com/*',
   'https://api.groq.com/*',
 ] as const;
+export const IMAGE_PROVIDER_ORIGIN = 'https://api.cloudflare.com/*';
 
 export const SOURCE_ORIGINS: Record<SourceName, string> = {
   'hacker-news': 'https://hacker-news.firebaseio.com/*',
@@ -28,6 +29,14 @@ export async function requestProviderPermissions(): Promise<boolean> {
 
 export async function hasProviderPermissions(): Promise<boolean> {
   return chrome.permissions.contains({ origins: [...PROVIDER_ORIGINS] });
+}
+
+export async function requestImageProviderPermission(): Promise<boolean> {
+  return chrome.permissions.request({ origins: [IMAGE_PROVIDER_ORIGIN] });
+}
+
+export async function hasImageProviderPermission(): Promise<boolean> {
+  return chrome.permissions.contains({ origins: [IMAGE_PROVIDER_ORIGIN] });
 }
 
 export async function requestSourcePermissions(sources: SourceName[]): Promise<boolean> {

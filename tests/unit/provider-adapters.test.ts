@@ -92,6 +92,7 @@ describe('AI provider adapters', () => {
               },
             },
           },
+          thinkingConfig: { thinkingLevel: 'minimal' },
         },
       });
       expect(JSON.stringify(body)).not.toContain('responseJsonSchema');
@@ -109,6 +110,44 @@ describe('AI provider adapters', () => {
     await expect(
       new GeminiProvider().generateStructured('gemini-key-123', request),
     ).resolves.toEqual({ answer: 'ready' });
+  });
+
+  it('repairs a readable Gemini response locally before falling back to another provider', async () => {
+    let attempt = 0;
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      attempt += 1;
+      const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}') as {
+        contents?: Array<{ parts?: Array<{ text?: string }> }>;
+      };
+      if (attempt === 2) {
+        expect(body.contents?.[0]?.parts?.[0]?.text).toContain('validationIssues');
+        expect(body.contents?.[0]?.parts?.[0]?.text).toContain('answer');
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts:
+                    attempt === 1
+                      ? [{ thought: true, text: 'internal reasoning' }, { text: '{"answer":42}' }]
+                      : [{ text: '{"answer":"repaired"}' }],
+                },
+                finishReason: 'STOP',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new GeminiProvider().generateStructured('gemini-key-123', request),
+    ).resolves.toEqual({ answer: 'repaired' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('uses Groq JSON schema mode and rejects structurally invalid output', async () => {

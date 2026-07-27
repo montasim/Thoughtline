@@ -1,12 +1,14 @@
-## What’s new in v0.2.0
+## What’s new in v0.3.0
 
-- Renamed **Generate** to **Refine** and kept pasted-content refinement in the same five-view side-panel workspace.
-- Added **Thoughtline → Refine the post to make your own** to LinkedIn’s context menu. It captures only the confirmed rendered post and opens a source-and-lens review before any AI request.
-- Added explicit personal-experience confirmation together with saved profile, topic, audience, tone, style-guide, and learned-preference grounding.
-- Produces a standalone post in the user’s voice instead of a reply to the source author. Provider output is converted to copy-ready plain text, and focused correction passes repair reply-style or overly close drafts.
-- Added optional source attribution with improved LinkedIn permalink recovery and a validated manual-link fallback when the rendered card exposes no usable URL.
-- Added grounding reports and original-source provenance to editable Refine results and History, plus Settings controls for context refinement, attribution defaults, and personal-claim confirmation.
-- Added v6 visual references, real-browser refinement journeys, modern LinkedIn DOM fixtures, plain-text response tests, and Android product-exploration artifacts.
+- Added optional visual companions for profile-grounded Refine results through Cloudflare Workers AI and FLUX.2 Klein 4B.
+- Added encrypted, device-local Cloudflare Account ID and API-token storage under **Settings → Connections**.
+- Added editable visual direction, inline generation progress, full preview, regeneration, and landscape-image download.
+- Fixed Idea research falling directly into the experience fallback when saved topics were multi-word phrases.
+- Replaced Stack Overflow’s over-constrained combined-tag request with independent relevance searches and added complete source-to-result browser coverage.
+- Added animated, cancellable Idea-search progress together with reliable back navigation and on-demand source enablement.
+- Added copy controls with success feedback to every expanded Reply, Refine, and Idea History record.
+- Ensured manual and context-menu Refine results finish with 5–10 relevant hashtags.
+- Improved Gemini structured-output handling and expanded provider, credential, source, History, Idea, and image-generation tests.
 
 ## Install in Chrome
 

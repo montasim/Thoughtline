@@ -173,30 +173,43 @@ class StackOverflowAdapter implements SourceAdapter {
   readonly source = 'stack-overflow' as const;
 
   async findBest(topics: string[], signal?: AbortSignal): Promise<SourceEvidence | null> {
-    const query = new URLSearchParams({
-      site: 'stackoverflow',
-      order: 'desc',
-      sort: 'votes',
-      pagesize: '30',
-      filter: 'withbody',
-      tagged: topics.slice(0, 3).join(';'),
-    });
-    const payload = z
-      .object({ items: z.array(stackQuestionSchema) })
-      .parse(
-        await getJson(`https://api.stackexchange.com/2.3/questions?${query.toString()}`, signal),
-      );
+    const queries = topics
+      .map((topic) => topic.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    const payloads = await Promise.all(
+      (queries.length > 0 ? queries : ['software development']).map(async (topic) => {
+        const query = new URLSearchParams({
+          site: 'stackoverflow',
+          order: 'desc',
+          sort: 'relevance',
+          pagesize: '15',
+          filter: 'withbody',
+          q: topic,
+        });
+        return z
+          .object({ items: z.array(stackQuestionSchema) })
+          .parse(
+            await getJson(
+              `https://api.stackexchange.com/2.3/search/advanced?${query.toString()}`,
+              signal,
+            ),
+          );
+      }),
+    );
     return selectBestCandidate(
       this.source,
-      payload.items.map((item) => ({
-        id: String(item.question_id),
-        title: plainTextFromHtml(item.title),
-        excerpt: item.body ? plainTextFromHtml(item.body) : plainTextFromHtml(item.title),
-        url: item.link,
-        tags: item.tags,
-        publishedAt: new Date(item.creation_date * 1_000).toISOString(),
-        signal: `${String(item.score)} votes · ${String(item.answer_count)} answers`,
-      })),
+      payloads
+        .flatMap((payload) => payload.items)
+        .map((item) => ({
+          id: String(item.question_id),
+          title: plainTextFromHtml(item.title),
+          excerpt: item.body ? plainTextFromHtml(item.body) : plainTextFromHtml(item.title),
+          url: item.link,
+          tags: item.tags,
+          publishedAt: new Date(item.creation_date * 1_000).toISOString(),
+          signal: `${String(item.score)} votes · ${String(item.answer_count)} answers`,
+        })),
       topics,
     );
   }

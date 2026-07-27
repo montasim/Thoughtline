@@ -33,17 +33,19 @@ import {
   EditorActions,
   EmptyState,
   PageHeading,
+  ProgressState,
   StatusBadge,
   SummaryCard,
 } from '../../components/common';
 import { SchedulePreviewDialog } from './schedule-preview-dialog';
 
 export function IdeasView() {
-  const { app, session, refresh } = useAppStore();
+  const { app, session, refresh, saveApp } = useAppStore();
   const job = useForegroundJob();
   const [ratings, setRatings] = useState<Record<string, 'liked' | 'disliked' | null>>({});
   const [language, setLanguage] = useState<'english' | 'bangla'>('english');
   const [ephemeral, setEphemeral] = useState<IdeaHistoryRecord | null>(null);
+  const [searchStage, setSearchStage] = useState('Collecting source evidence');
 
   const selected = session?.activeRecordId
     ? app?.history.find((item) => item.id === session.activeRecordId && item.type === 'idea')
@@ -58,13 +60,20 @@ export function IdeasView() {
   };
 
   const startSearch = () => {
-    if (!app.settings.publicResearchEnabled) {
-      void saveSession({ ideaView: 'experience' });
-      return;
-    }
     void (async () => {
+      job.setError(null);
       const granted = await requestSourcePermissions(app.settings.selectedSources);
-      if (!granted) return null;
+      if (!granted) {
+        job.setError('Allow access to the selected public sources to find ideas.');
+        return null;
+      }
+      if (!app.settings.publicResearchEnabled) {
+        await saveApp({
+          ...app,
+          settings: { ...app.settings, publicResearchEnabled: true },
+        });
+      }
+      setSearchStage('Collecting source evidence');
       await job.run(async (signal) => {
         const research = await collectSourceEvidence(
           app.settings.selectedSources,
@@ -75,6 +84,7 @@ export function IdeasView() {
           await saveSession({ ideaView: 'experience' });
           return null;
         }
+        setSearchStage('Ranking the strongest ideas');
         const synthesized = await synthesizeIdeas(
           research.evidence,
           structuredClone(app.profile),
@@ -204,9 +214,20 @@ export function IdeasView() {
           description="Start with one real lesson you can stand behind."
           compact
           action={
-            <Button size="compact" onClick={startSearch}>
-              Try sources
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon"
+                variant="secondary"
+                aria-label="Back to ideas"
+                title="Back to ideas"
+                onClick={() => void saveSession({ ideaView: 'search', activeRecordId: undefined })}
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+              <Button size="compact" onClick={startSearch}>
+                Try sources
+              </Button>
+            </div>
           }
         />
         {job.error ? <ErrorMessage message={job.error} /> : null}
@@ -258,9 +279,11 @@ export function IdeasView() {
         />
         {job.error ? <ErrorMessage message={job.error} /> : null}
         {job.running ? (
-          <EmptyState
+          <ProgressState
             title="Searching selected sources"
+            stage={searchStage}
             description="Thoughtline is collecting source-native evidence, then one AI job will rank the strongest ideas."
+            onCancel={job.cancel}
           />
         ) : (
           <EmptyState

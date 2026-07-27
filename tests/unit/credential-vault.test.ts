@@ -30,4 +30,16 @@ describe('device-bound provider credentials', () => {
     await vault.remove('groq');
     await expect(vault.get('groq')).resolves.toBeNull();
   });
+
+  it('stores image-provider credentials independently from writing-provider keys', async () => {
+    const vault = new CredentialVault();
+    const credentials = JSON.stringify({
+      accountId: 'd4c640df7393e8bb3f30ab6282fe3e66',
+      apiToken: 'cloudflare-workers-ai-token',
+    });
+    await vault.save('cloudflare-images', credentials);
+
+    await expect(vault.get('cloudflare-images')).resolves.toBe(credentials);
+    await expect(vault.get('gemini')).resolves.toBeNull();
+  });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, Trash2 } from 'lucide-react';
+import { Check, Copy, ExternalLink, Trash2 } from 'lucide-react';
 import type { ReplyDirectionId, WorkHistoryRecord } from '../../../domain/schemas';
 import { storageRepository } from '../../../infrastructure/storage/chrome-storage';
 import { useAppStore } from '../../state/app-store';
@@ -16,7 +16,13 @@ import { Input } from '../../primitives/input';
 import { SelectContent, SelectItem, SelectRoot, SelectTrigger } from '../../primitives/select';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../primitives/tabs';
 import { Textarea } from '../../primitives/textarea';
-import { PageHeading, ReviewNote, StatusBadge, SummaryCard } from '../../components/common';
+import {
+  copyText,
+  PageHeading,
+  ReviewNote,
+  StatusBadge,
+  SummaryCard,
+} from '../../components/common';
 
 type HistoryFilter = 'all' | 'reply' | 'rewrite' | 'idea';
 
@@ -221,33 +227,38 @@ function ExpandedRecord({
             <TabsContent key={direction.id} forceMount hidden value={direction.id} />
           ))}
         </TabsRoot>
-        <div className="flex items-center justify-between">
-          <strong className="text-xs">Saved reply</strong>
-          <span className="text-[10px] text-muted">
-            {directionLabel(selected.id)} · edited
-            {selected.feedback?.rating === 'liked'
-              ? ' · 👍 Helpful'
-              : selected.feedback?.rating === 'disliked'
-                ? ' · Needs improvement'
-                : ''}
-          </span>
+        <div className="space-y-2">
+          <SavedContentHeader
+            label="Saved reply"
+            text={selected.currentText}
+            meta={
+              <>
+                {directionLabel(selected.id)} · edited
+                {selected.feedback?.rating === 'liked'
+                  ? ' · 👍 Helpful'
+                  : selected.feedback?.rating === 'disliked'
+                    ? ' · Needs improvement'
+                    : ''}
+              </>
+            }
+          />
+          <Textarea
+            aria-label="Saved reply"
+            value={selected.currentText}
+            onChange={(event) =>
+              void onSave({
+                ...record,
+                updatedAt: new Date().toISOString(),
+                directions: record.directions.map((direction) =>
+                  direction.id === selected.id
+                    ? { ...direction, currentText: event.target.value }
+                    : direction,
+                ),
+              })
+            }
+            className="min-h-48"
+          />
         </div>
-        <Textarea
-          aria-label="Saved reply"
-          value={selected.currentText}
-          onChange={(event) =>
-            void onSave({
-              ...record,
-              updatedAt: new Date().toISOString(),
-              directions: record.directions.map((direction) =>
-                direction.id === selected.id
-                  ? { ...direction, currentText: event.target.value }
-                  : direction,
-              ),
-            })
-          }
-          className="min-h-48"
-        />
         <AccordionRoot type="single" defaultValue="source" collapsible>
           <AccordionItem value="source">
             <AccordionTrigger>Source and reasoning</AccordionTrigger>
@@ -280,21 +291,24 @@ function ExpandedRecord({
   if (record.type === 'rewrite') {
     return (
       <div className="space-y-3 border-t border-rule px-4 pb-4 pt-3">
-        <strong className="text-xs">
-          {record.mode === 'context' ? 'Saved profile-grounded post' : 'Saved refinement'}
-        </strong>
-        <Textarea
-          aria-label="Saved refinement"
-          value={record.currentText}
-          onChange={(event) =>
-            void onSave({
-              ...record,
-              currentText: event.target.value,
-              updatedAt: new Date().toISOString(),
-            })
-          }
-          className="min-h-48"
-        />
+        <div className="space-y-2">
+          <SavedContentHeader
+            label={record.mode === 'context' ? 'Saved profile-grounded post' : 'Saved refinement'}
+            text={record.currentText}
+          />
+          <Textarea
+            aria-label="Saved refinement"
+            value={record.currentText}
+            onChange={(event) =>
+              void onSave({
+                ...record,
+                currentText: event.target.value,
+                updatedAt: new Date().toISOString(),
+              })
+            }
+            className="min-h-48"
+          />
+        </div>
         <AccordionRoot type="multiple" defaultValue={['original']}>
           <AccordionItem value="original">
             <AccordionTrigger>
@@ -343,19 +357,21 @@ function ExpandedRecord({
       {record.summary ? (
         <SummaryCard summary={record.summary} language={language} onLanguageChange={setLanguage} />
       ) : null}
-      <strong className="text-xs">Saved post</strong>
-      <Textarea
-        aria-label="Saved post"
-        value={record.currentText}
-        onChange={(event) =>
-          void onSave({
-            ...record,
-            currentText: event.target.value,
-            updatedAt: new Date().toISOString(),
-          })
-        }
-        className="min-h-48"
-      />
+      <div className="space-y-2">
+        <SavedContentHeader label="Saved post" text={record.currentText} />
+        <Textarea
+          aria-label="Saved post"
+          value={record.currentText}
+          onChange={(event) =>
+            void onSave({
+              ...record,
+              currentText: event.target.value,
+              updatedAt: new Date().toISOString(),
+            })
+          }
+          className="min-h-48"
+        />
+      </div>
       <AccordionRoot type="multiple" defaultValue={['source']}>
         <AccordionItem value="source">
           <AccordionTrigger>Source and writing direction</AccordionTrigger>
@@ -382,6 +398,61 @@ function ExpandedRecord({
         </AccordionItem>
         <RevisionsItem revisions={record.revisions} />
       </AccordionRoot>
+    </div>
+  );
+}
+
+function SavedContentHeader({
+  label,
+  text,
+  meta,
+}: {
+  label: string;
+  text: string;
+  meta?: React.ReactNode;
+}) {
+  const [copied, setCopied] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    },
+    [],
+  );
+
+  const copy = async () => {
+    try {
+      await copyText(text);
+      setCopied(true);
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+      resetTimer.current = setTimeout(() => setCopied(false), 1_400);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-[34px] items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <strong className="text-xs">{label}</strong>
+        <Button
+          size="icon"
+          variant="secondary"
+          aria-label={
+            copied ? `Copied ${label.toLocaleLowerCase()}` : `Copy ${label.toLocaleLowerCase()}`
+          }
+          title={copied ? 'Copied' : 'Copy'}
+          data-copied={copied || undefined}
+          onClick={() => void copy()}
+        >
+          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+        </Button>
+      </div>
+      {meta ? <span className="text-right text-[10px] text-muted">{meta}</span> : null}
+      <span className="sr-only" aria-live="polite">
+        {copied ? `${label} copied to clipboard` : ''}
+      </span>
     </div>
   );
 }

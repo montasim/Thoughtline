@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { AppError } from '../../application/errors';
-import { providerNameSchema, type ProviderName } from '../../domain/schemas';
 
 const DATABASE_NAME = 'thoughtline-vault';
 const DATABASE_VERSION = 1;
@@ -8,6 +7,8 @@ const KEY_STORE = 'device-keys';
 const DEVICE_KEY_ID = 'credential-key-v1';
 const CREDENTIALS_KEY = 'thoughtline.provider-credentials';
 const SESSION_CREDENTIALS_KEY = 'thoughtline.session-credentials';
+const credentialNameSchema = z.enum(['gemini', 'groq', 'cloudflare-images']);
+export type CredentialName = z.infer<typeof credentialNameSchema>;
 
 const encryptedCredentialSchema = z.object({
   algorithm: z.literal('AES-GCM'),
@@ -16,11 +17,14 @@ const encryptedCredentialSchema = z.object({
   version: z.literal(1),
 });
 
-const encryptedCredentialMapSchema = z.partialRecord(providerNameSchema, encryptedCredentialSchema);
-const sessionCredentialMapSchema = z.partialRecord(providerNameSchema, z.string().min(1));
+const encryptedCredentialMapSchema = z.partialRecord(
+  credentialNameSchema,
+  encryptedCredentialSchema,
+);
+const sessionCredentialMapSchema = z.partialRecord(credentialNameSchema, z.string().min(1));
 
 export class CredentialVault {
-  async save(provider: ProviderName, apiKey: string): Promise<void> {
+  async save(provider: CredentialName, apiKey: string): Promise<void> {
     const value = apiKey.trim();
     if (value.length < 10 || value.length > 500) {
       throw new AppError('credential-invalid', `The ${providerLabel(provider)} key is invalid.`);
@@ -43,7 +47,7 @@ export class CredentialVault {
     await this.cacheSession(provider, value);
   }
 
-  async get(provider: ProviderName): Promise<string | null> {
+  async get(provider: CredentialName): Promise<string | null> {
     const session = await this.readSession();
     if (session[provider]) return session[provider] ?? null;
     const encrypted = (await this.readEncrypted())[provider];
@@ -66,11 +70,11 @@ export class CredentialVault {
     }
   }
 
-  async has(provider: ProviderName): Promise<boolean> {
+  async has(provider: CredentialName): Promise<boolean> {
     return Boolean((await this.readEncrypted())[provider]);
   }
 
-  async remove(provider: ProviderName): Promise<void> {
+  async remove(provider: CredentialName): Promise<void> {
     const encrypted = await this.readEncrypted();
     delete encrypted[provider];
     await chrome.storage.local.set({ [CREDENTIALS_KEY]: encrypted });
@@ -89,7 +93,7 @@ export class CredentialVault {
     return sessionCredentialMapSchema.parse(result[SESSION_CREDENTIALS_KEY] ?? {});
   }
 
-  private async cacheSession(provider: ProviderName, apiKey: string): Promise<void> {
+  private async cacheSession(provider: CredentialName, apiKey: string): Promise<void> {
     const session = await this.readSession();
     session[provider] = apiKey;
     await chrome.storage.session.set({ [SESSION_CREDENTIALS_KEY]: session });
@@ -160,8 +164,10 @@ function fromBase64(value: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
-function providerLabel(provider: ProviderName): string {
-  return provider === 'gemini' ? 'Gemini' : 'Groq';
+function providerLabel(provider: CredentialName): string {
+  if (provider === 'gemini') return 'Gemini';
+  if (provider === 'groq') return 'Groq';
+  return 'Cloudflare image';
 }
 
 export const credentialVault = new CredentialVault();

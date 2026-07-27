@@ -5,6 +5,7 @@ import {
   replyEnvelope,
   rewriteEnvelope,
 } from '../../src/application/untrusted-envelope';
+import { countHashtags } from '../../src/application/workflows';
 import {
   hasSourceResponseFraming,
   hasSharedPhrase,
@@ -51,6 +52,14 @@ describe('untrusted content boundary', () => {
         'বাংলাদেশের টেক বেতন নিয়ে স্বচ্ছ আলোচনা দরকার। Salary range লুকানো হলে employee-ই ক্ষতিগ্রস্ত হয়।',
       ),
     ).toBe(false);
+  });
+
+  it('counts distinct English and Bangla hashtags in a Refine result', () => {
+    expect(
+      countHashtags(
+        '#SoftwareEngineering #বাংলাদেশটেক #CareerGrowth #SoftwareEngineering #Leadership',
+      ),
+    ).toBe(4);
   });
 
   it('keeps prompt-like text inside a validated data envelope', () => {

@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { analyzeReply, draftPost, rewriteContent } from '../../src/application/workflows';
+import {
+  analyzeReply,
+  countHashtags,
+  draftPost,
+  rewriteContent,
+} from '../../src/application/workflows';
 import { defaultAppData, type PostContext, type SourceEvidence } from '../../src/domain/schemas';
 import { credentialVault } from '../../src/infrastructure/storage/credential-vault';
 import {
@@ -39,12 +44,14 @@ describe.skipIf(!enabled)('live AI response quality', () => {
       policy: {
         requiredAnchors: ['TypeScript', 'build time', 'services'],
         forbiddenClaims: ['revenue', 'customers', 'zero defects'],
-        maxWords: 35,
+        maxWords: 45,
         allowEmoji: false,
-        allowHashtags: false,
+        allowHashtags: true,
       },
     });
     expect(failedChecks(report), result.record.generatedText).toEqual([]);
+    expect(countHashtags(result.record.generatedText)).toBeGreaterThanOrEqual(5);
+    expect(countHashtags(result.record.generatedText)).toBeLessThanOrEqual(10);
   }, 120_000);
 
   it('produces four grounded, distinct reply directions from real generation', async () => {

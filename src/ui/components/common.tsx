@@ -263,7 +263,17 @@ export function EmptyState({
   );
 }
 
-export function ProgressState({ stage, onCancel }: { stage: string; onCancel: () => void }) {
+export function ProgressState({
+  stage,
+  onCancel,
+  title = 'Analyzing the selected discussion',
+  description = 'Thoughtline reads only the visible post and discussion already rendered in LinkedIn.',
+}: {
+  stage: string;
+  onCancel: () => void;
+  title?: string;
+  description?: string;
+}) {
   return (
     <Card className="grid min-h-[330px] content-center justify-items-start gap-3 rounded-[10px] p-6">
       <span
@@ -271,12 +281,10 @@ export function ProgressState({ stage, onCancel }: { stage: string; onCancel: ()
         aria-hidden="true"
       />
       <h3 className="font-display text-[19px] font-[680] leading-[1.28] tracking-[-0.015em] text-ink">
-        Analyzing the selected discussion
+        {title}
       </h3>
       <p className="font-utility text-[10.5px] text-proof">{stage}</p>
-      <p className="text-[13px] leading-[1.58] text-muted">
-        Thoughtline reads only the visible post and discussion already rendered in LinkedIn.
-      </p>
+      <p className="text-[13px] leading-[1.58] text-muted">{description}</p>
       <Button onClick={onCancel}>Cancel</Button>
     </Card>
   );

@@ -49,6 +49,7 @@ import { Textarea } from '../../primitives/textarea';
 import { PageHeading, StatusBadge } from '../../components/common';
 import { ApiKeysPanel } from './api-keys-panel';
 import { ArchiveDialogs } from './archive-dialogs';
+import { ImageConnectionPanel } from './image-connection-panel';
 
 const SOURCES: Array<{ id: SourceName; label: string }> = [
   { id: 'hacker-news', label: 'Hacker News' },
@@ -326,6 +327,7 @@ export function SettingsView() {
             )}
           </div>
           <ApiKeysPanel app={app} onSave={saveApp} />
+          <ImageConnectionPanel />
           <div className="rounded-lg border border-rule bg-soft p-3 text-[10.5px] leading-relaxed text-muted">
             AI work is sent directly to Gemini, with one automatic Groq fallback. Free-tier handling
             and retention follow your provider accounts.{' '}

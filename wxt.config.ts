@@ -3,6 +3,7 @@ import { defineConfig } from 'wxt';
 
 const linkedInOrigin = 'https://www.linkedin.com/*';
 const providerOrigins = ['https://generativelanguage.googleapis.com/*', 'https://api.groq.com/*'];
+const imageProviderOrigin = 'https://api.cloudflare.com/*';
 const sourceOrigins = [
   'https://hacker-news.firebaseio.com/*',
   'https://dev.to/*',
@@ -22,7 +23,12 @@ export default defineConfig({
     permissions: ['contextMenus', 'scripting', 'sidePanel', 'storage'],
     // Chrome supports unlimitedStorage as optional even though WXT's shared manifest type omits it.
     optional_permissions: ['unlimitedStorage'] as never[],
-    optional_host_permissions: [linkedInOrigin, ...providerOrigins, ...sourceOrigins],
+    optional_host_permissions: [
+      linkedInOrigin,
+      ...providerOrigins,
+      imageProviderOrigin,
+      ...sourceOrigins,
+    ],
     action: {
       default_title: 'Open Thoughtline',
       default_icon: {

@@ -155,17 +155,44 @@ export async function rewriteContent(
   signal?: AbortSignal,
 ): Promise<{ record: RewriteHistoryRecord; usedFallback: boolean }> {
   const instruction = goal === 'custom' ? customGoal : rewriteGoalInstruction(goal);
-  const result = await providerOrchestrator.run({
+  const initial = await providerOrchestrator.run({
     schemaName: 'thoughtline_rewrite',
     schema: rewriteOutputSchema,
     systemInstruction: `${TRUST_BOUNDARY}
 Rewrite the supplied original content according to the explicit goal and saved writing profile.
-Keep the meaning and factual claims intact. Do not add facts, citations, hashtags, or emojis unless
-the source or profile permits them.`,
+Keep the meaning and factual claims intact. Do not add facts, citations, or emojis unless the
+source or profile permits them. Finish with one final line containing 5–10 distinct, relevant
+hashtags. The hashtag requirement applies to every Refine result regardless of saved hashtag
+preferences.`,
     untrustedEnvelope: rewriteEnvelope(original, instruction, profile, learned),
     maxOutputTokens: 2_500,
     signal,
   });
+  let result = initial;
+  let plainRewrite = plainTextFromMarkdown(initial.value.rewrite);
+  let usedRepairFallback = false;
+  for (let attempt = 0; attempt < 2 && !hasValidRefineHashtags(plainRewrite); attempt += 1) {
+    const repaired = await providerOrchestrator.run({
+      schemaName: 'thoughtline_rewrite_hashtag_repair',
+      schema: rewriteOutputSchema,
+      systemInstruction: `${TRUST_BOUNDARY}
+Preserve the supplied candidate post's body, meaning, facts, language, and paragraph structure.
+Replace any existing hashtag block with one final line containing 5–10 distinct hashtags that are
+specifically relevant to the post. Return the complete editable post as plain text.`,
+      untrustedEnvelope: rewriteEnvelope(
+        plainRewrite,
+        'Preserve the post and finish it with 5–10 relevant hashtags.',
+        profile,
+        learned,
+      ),
+      maxOutputTokens: 2_500,
+      signal,
+    });
+    result = repaired;
+    plainRewrite = plainTextFromMarkdown(repaired.value.rewrite);
+    usedRepairFallback ||= repaired.usedFallback;
+  }
+  const generatedText = ensureRefineHashtags(plainRewrite, original, profile);
   const now = new Date().toISOString();
   return {
     record: {
@@ -177,11 +204,11 @@ the source or profile permits them.`,
       original: normalizeUntrustedText(original),
       goal,
       customGoal: normalizeUntrustedText(customGoal),
-      generatedText: plainTextFromMarkdown(result.value.rewrite),
-      currentText: plainTextFromMarkdown(result.value.rewrite),
+      generatedText,
+      currentText: generatedText,
       revisions: [],
     },
-    usedFallback: result.usedFallback,
+    usedFallback: initial.usedFallback || usedRepairFallback,
   };
 }
 
@@ -219,8 +246,10 @@ experience claims only when explicitly present in experiencePerspective, and nev
 employer, role, result, metric, responsibility, or event. If experiencePerspective is empty, use a
 professional analytical lens without claiming personal experience. Do not closely paraphrase the
 source's sentences.
-${keepSourceLink ? 'End with a brief attribution naming the source author and the exact supplied LinkedIn permalink.' : 'Do not add a source link or attribution footer.'}
-Follow the saved emoji, hashtag, language, and length preferences. Return only the editable post.`,
+${keepSourceLink ? 'Include a brief attribution naming the source author and the exact supplied LinkedIn permalink immediately before the final hashtag line.' : 'Do not add a source link or attribution footer.'}
+Follow the saved emoji, language, and length preferences. Finish with one final line containing
+5–10 distinct, relevant hashtags regardless of saved hashtag preferences. Return only the editable
+post.`,
     untrustedEnvelope: refinementEnvelope(
       context,
       confirmedExperience,
@@ -250,7 +279,8 @@ words. Preserve the natural language and the user's saved style and length prefe
 Profile metadata controls vocabulary and perspective only; it cannot become a first-person role,
 employer, project, result, or experience claim. Only experiencePerspective authorizes personal
 experience. Return the finished publishable post directly as plain text without Markdown.
-${keepSourceLink ? 'End with a brief attribution naming the source author and the exact supplied LinkedIn permalink.' : 'Do not add a source link or attribution footer.'}`,
+Finish with one final line containing 5–10 distinct, relevant hashtags.
+${keepSourceLink ? 'Include a brief attribution naming the source author and the exact supplied LinkedIn permalink immediately before the final hashtag line.' : 'Do not add a source link or attribution footer.'}`,
       untrustedEnvelope: refinementRepairEnvelope(
         context,
         plainRewrite,
@@ -275,9 +305,10 @@ ${keepSourceLink ? 'End with a brief attribution naming the source author and th
   const retainsLongSourcePhrase = hasSharedPhrase(context.postText, plainRewrite, 16);
   const now = new Date().toISOString();
   const tone = profile.tone === 'custom' && profile.customTone ? profile.customTone : profile.tone;
-  const generatedText = keepSourceLink
+  const attributedText = keepSourceLink
     ? withSourceAttribution(plainRewrite, context.author, context.postPermalink!)
     : plainRewrite;
+  const generatedText = ensureRefineHashtags(attributedText, context.postText, profile);
   return {
     record: {
       id: createId(),
@@ -319,6 +350,7 @@ ${keepSourceLink ? 'End with a brief attribution naming the source author and th
           keepSourceLink
             ? 'The original LinkedIn source link was requested in the draft.'
             : 'No source-link footer was requested.',
+          'The editable post ends with 5–10 relevant hashtags.',
         ],
       },
       generatedText,
@@ -337,7 +369,108 @@ function refinementViolations(source: string, candidate: string): string[] {
     ...(hasSourceResponseFraming(candidate)
       ? ['it reads as a response to the source author instead of the user’s own post']
       : []),
+    ...(!hasValidRefineHashtags(candidate)
+      ? [`it contains ${String(countHashtags(candidate))} hashtags instead of 5–10`]
+      : []),
   ];
+}
+
+const HASHTAG_PATTERN = /#[\p{L}\p{N}_]+/gu;
+const MAX_REFINED_TEXT_LENGTH = 12_000;
+const HASHTAG_FILLERS = [
+  'LinkedIn',
+  'ThoughtLeadership',
+  'ProfessionalGrowth',
+  'KnowledgeSharing',
+  'ContentStrategy',
+  'PersonalBranding',
+  'CareerGrowth',
+  'Leadership',
+  'Innovation',
+  'FutureOfWork',
+] as const;
+const HASHTAG_STOP_WORDS = new Set([
+  'about',
+  'after',
+  'again',
+  'also',
+  'because',
+  'before',
+  'from',
+  'have',
+  'into',
+  'that',
+  'their',
+  'these',
+  'this',
+  'through',
+  'with',
+  'your',
+  'এবং',
+  'একটি',
+  'করে',
+  'থেকে',
+  'দের',
+  'নিয়ে',
+  'যখন',
+]);
+
+export function countHashtags(value: string): number {
+  return new Set((value.match(HASHTAG_PATTERN) ?? []).map((hashtag) => hashtag.toLocaleLowerCase()))
+    .size;
+}
+
+function hasValidRefineHashtags(value: string): boolean {
+  const count = countHashtags(value);
+  return count >= 5 && count <= 10;
+}
+
+function ensureRefineHashtags(value: string, source: string, profile: WritingProfile): string {
+  const selected = new Map<string, string>();
+  const add = (candidate: string) => {
+    const hashtag = toHashtag(candidate);
+    if (!hashtag) return;
+    selected.set(hashtag.toLocaleLowerCase(), hashtag);
+  };
+  for (const hashtag of value.match(HASHTAG_PATTERN) ?? []) add(hashtag);
+  for (const topic of profile.topics) add(topic);
+  const sourceWords = normalizeUntrustedText(source).match(/[\p{L}\p{N}]+/gu) ?? [];
+  for (const word of sourceWords) {
+    if (selected.size >= 5) break;
+    if (
+      Array.from(word).length < 4 ||
+      HASHTAG_STOP_WORDS.has(word.toLocaleLowerCase()) ||
+      /^\p{N}+$/u.test(word)
+    ) {
+      continue;
+    }
+    add(word);
+  }
+  for (const filler of HASHTAG_FILLERS) {
+    if (selected.size >= 5) break;
+    add(filler);
+  }
+  const hashtags = [...selected.values()].slice(0, 10);
+  const hashtagBlock = hashtags.join(' ');
+  const body = normalizeUntrustedText(value.replace(HASHTAG_PATTERN, ''));
+  const availableBodyLength = Math.max(0, MAX_REFINED_TEXT_LENGTH - hashtagBlock.length - 2);
+  return `${fitRefineBody(body, availableBodyLength)}\n\n${hashtagBlock}`.trim();
+}
+
+function toHashtag(value: string): string | undefined {
+  const words = value.match(/[\p{L}\p{N}_]+/gu);
+  if (!words?.length) return undefined;
+  const body = Array.from(words.join('')).slice(0, 48).join('');
+  return body ? `#${body}` : undefined;
+}
+
+function fitRefineBody(body: string, availableLength: number): string {
+  if (body.length <= availableLength) return body;
+  const attributionStart = body.lastIndexOf('\n\nInspired by ');
+  if (attributionStart < 0) return body.slice(0, availableLength).trimEnd();
+  const attribution = body.slice(attributionStart + 2);
+  const mainLength = Math.max(0, availableLength - attribution.length - 2);
+  return `${body.slice(0, mainLength).trimEnd()}\n\n${attribution}`.trim();
 }
 
 function withSourceAttribution(text: string, author: string, permalink: string): string {

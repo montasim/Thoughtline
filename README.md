@@ -4,14 +4,14 @@ Thoughtline is a user-controlled Chrome side-panel extension for understanding a
 
 > Status: functional development release for Chrome 120+. Scheduling is a visual preview only; it does not run jobs or send email until the separate scheduling API is integrated.
 
-## Latest release: v0.2.0
+## Latest release: v0.3.0
 
-- Renamed **Generate** to **Refine** for user-provided content.
-- Added **Refine the post to make your own** to Thoughtline’s LinkedIn context menu.
-- Added source-and-lens review, explicit experience confirmation, optional source-link attribution, and profile-, tone-, style-, and preference-grounded post creation.
-- Produces standalone, copy-ready plain text with Markdown cleanup and focused correction passes when a provider returns reply-style or overly close content.
-- Added source provenance, grounding details, feedback, edits, revisions, and new refinement controls in Settings and History.
-- Improved LinkedIn permalink recovery with a validated manual-link fallback when the rendered card exposes no usable URL.
+- Added optional Cloudflare Workers AI image generation for profile-grounded Refine results, including editable visual direction, preview, regeneration, and download.
+- Improved Idea research so multi-word topics match meaningful source terms and Stack Overflow topics are searched independently instead of requiring an impossible combined-tag match.
+- Added animated, cancellable Idea-search progress and reliable navigation between source search and the experience fallback.
+- Added copy controls to every expanded History record and clearer spacing around saved writing.
+- Ensured every manual and context-menu Refine result ends with 5–10 relevant hashtags.
+- Improved Gemini structured-output compatibility and encrypted storage for optional image credentials.
 
 ## Product tour
 
@@ -30,6 +30,7 @@ The screenshots above are captured from the production extension at the canonica
 - Paste content into **Refine** and reshape it in the configured voice.
 - Search Hacker News, DEV, Medium, Lobsters, and Stack Overflow when enabled, with at most one idea selected from each source. Every source reference links to the original item.
 - Build an editable LinkedIn post from a sourced idea or a real experience supplied by the user.
+- Optionally create, preview, refine, regenerate, and download a landscape editorial illustration for a profile-grounded Refine result through Cloudflare Workers AI.
 - Search, filter, edit, revise, delete, clear, retain, export, and import Reply, Refine, and Idea history.
 - Configure writing language, length, tone, custom instructions, writing samples, and a reviewable style guide.
 - Derive an editable profile suggestion locally from the user's own LinkedIn PDF export; the raw PDF is not retained.
@@ -82,6 +83,8 @@ For a post target, visible rendered threads inside that post are included. For a
 ## Refine workflow
 
 For pasted content, open **Refine**, provide the text, choose a goal, and review the editable result.
+Both pasted-content and context-menu Refine results include 5–10 relevant hashtags in the editable
+post, so the Copy action includes the complete post and hashtag block.
 
 For a rendered LinkedIn post:
 
@@ -171,7 +174,7 @@ The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md)
 Update the package and extension version, refresh `.github/RELEASE_NOTES.md`, and push a matching `v*` tag:
 
 ```bash
-VERSION=v0.2.0
+VERSION=v0.3.0
 git tag "$VERSION"
 git push origin "$VERSION"
 ```
