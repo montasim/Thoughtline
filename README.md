@@ -4,14 +4,11 @@ Thoughtline is a user-controlled Chrome side-panel extension for understanding a
 
 > Status: functional development release for Chrome 120+. Scheduling is a visual preview only; it does not run jobs or send email until the separate scheduling API is integrated.
 
-## Latest release: v0.3.0
+## Latest release: v0.3.1
 
-- Added optional Cloudflare Workers AI image generation for profile-grounded Refine results, including editable visual direction, preview, regeneration, and download.
-- Improved Idea research so multi-word topics match meaningful source terms and Stack Overflow topics are searched independently instead of requiring an impossible combined-tag match.
-- Added animated, cancellable Idea-search progress and reliable navigation between source search and the experience fallback.
-- Added copy controls to every expanded History record and clearer spacing around saved writing.
-- Ensured every manual and context-menu Refine result ends with 5–10 relevant hashtags.
-- Improved Gemini structured-output compatibility and encrypted storage for optional image credentials.
+- Made Refine editors grow with their content so the complete draft stays visible while writing.
+- Debounced Refine draft persistence for smooth typing while preserving edits on blur, copy, rating, and image generation.
+- Hid saved Cloudflare Account IDs by default with the same explicit reveal control used for Workers AI tokens.
 
 ## Product tour
 
@@ -174,7 +171,7 @@ The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md)
 Update the package and extension version, refresh `.github/RELEASE_NOTES.md`, and push a matching `v*` tag:
 
 ```bash
-VERSION=v0.3.0
+VERSION=v0.3.1
 git tag "$VERSION"
 git push origin "$VERSION"
 ```

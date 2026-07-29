@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
 import {
   Check,
   Download,
@@ -68,6 +68,102 @@ const REFINEMENT_STAGE_LABELS = {
   refining: 'Creating a distinct perspective in your voice',
   saving: 'Saving source provenance to History',
 } as const;
+
+const EDIT_AUTOSAVE_DELAY_MS = 350;
+
+function AutoGrowingTextarea({ value, ...props }: ComponentProps<typeof Textarea>) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+    textarea.style.height = `${String(textarea.scrollHeight + borderHeight)}px`;
+  }, [value]);
+
+  return <Textarea ref={textareaRef} value={value} {...props} />;
+}
+
+function useRewriteDraft(
+  record: RewriteHistoryRecord,
+  onUpdate: (record: RewriteHistoryRecord, feedback?: Feedback) => Promise<void>,
+) {
+  const [text, setText] = useState(record.currentText);
+  const textRef = useRef(text);
+  const recordRef = useRef(record);
+  const onUpdateRef = useRef(onUpdate);
+  const dirty = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const saveQueue = useRef(Promise.resolve());
+  const recordIdRef = useRef(record.id);
+
+  useLayoutEffect(() => {
+    textRef.current = text;
+    recordRef.current = record;
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate, record, text]);
+
+  useEffect(() => {
+    if (recordIdRef.current !== record.id) {
+      clearTimeout(timer.current);
+      recordIdRef.current = record.id;
+      dirty.current = false;
+    }
+    if (record.currentText === textRef.current) dirty.current = false;
+    if (!dirty.current) {
+      textRef.current = record.currentText;
+      setText(record.currentText);
+    }
+  }, [record.currentText, record.id]);
+
+  const enqueue = (next: RewriteHistoryRecord, feedback?: Feedback) => {
+    saveQueue.current = saveQueue.current
+      .catch(() => undefined)
+      .then(() => onUpdateRef.current(next, feedback));
+    void saveQueue.current.catch(() => undefined);
+  };
+
+  const saveText = (nextText: string) => {
+    const current = recordRef.current;
+    const feedback = feedbackAfterEdit(current.feedback, current.generatedText, nextText);
+    enqueue(
+      {
+        ...current,
+        currentText: nextText,
+        updatedAt: new Date().toISOString(),
+        ...(feedback ? { feedback } : {}),
+      },
+      feedback,
+    );
+  };
+
+  const flush = () => {
+    if (!dirty.current) return;
+    clearTimeout(timer.current);
+    dirty.current = false;
+    saveText(textRef.current);
+  };
+
+  const change = (nextText: string) => {
+    textRef.current = nextText;
+    dirty.current = true;
+    setText(nextText);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      dirty.current = false;
+      saveText(nextText);
+    }, EDIT_AUTOSAVE_DELAY_MS);
+  };
+
+  const update = (next: RewriteHistoryRecord, feedback?: Feedback) => {
+    clearTimeout(timer.current);
+    dirty.current = false;
+    enqueue(next, feedback);
+  };
+
+  return { change, flush, text, update };
+}
 
 export function GenerateView() {
   const { app, session, refresh } = useAppStore();
@@ -881,14 +977,14 @@ function RefinementResult({
   onOpenSettings: () => Promise<void>;
   onUpdate: (record: RewriteHistoryRecord, feedback?: Feedback) => Promise<void>;
 }) {
+  const draft = useRewriteDraft(record, onUpdate);
   const rate = (rating: 'liked' | 'disliked') => {
-    const feedback = feedbackAfterRating(
-      record.feedback,
-      record.generatedText,
-      record.currentText,
-      rating,
+    const editFeedback = feedbackAfterEdit(record.feedback, record.generatedText, draft.text);
+    const feedback = feedbackAfterRating(editFeedback, record.generatedText, draft.text, rating);
+    draft.update(
+      { ...record, currentText: draft.text, updatedAt: new Date().toISOString(), feedback },
+      feedback,
     );
-    void onUpdate({ ...record, updatedAt: new Date().toISOString(), feedback }, feedback);
   };
   return (
     <>
@@ -915,33 +1011,19 @@ function RefinementResult({
             rating={record.feedback?.rating ?? null}
             onRate={rate}
             onRegenerate={onRegenerate}
-            onCopy={() => copyText(record.currentText)}
+            onCopy={() => copyText(draft.text)}
             canRegenerate={!running}
           />
         </div>
-        <Textarea
-          value={record.currentText}
+        <AutoGrowingTextarea
+          value={draft.text}
           aria-label="Editable refined post"
-          onChange={(event) => {
-            const feedback = feedbackAfterEdit(
-              record.feedback,
-              record.generatedText,
-              event.target.value,
-            );
-            void onUpdate(
-              {
-                ...record,
-                currentText: event.target.value,
-                updatedAt: new Date().toISOString(),
-                ...(feedback ? { feedback } : {}),
-              },
-              feedback,
-            );
-          }}
-          className="mt-3 min-h-[280px]"
+          onBlur={draft.flush}
+          onChange={(event) => draft.change(event.target.value)}
+          className="mt-3 min-h-[280px] resize-none overflow-hidden"
         />
         <PostIllustrationPanel
-          postText={record.currentText}
+          postText={draft.text}
           profile={profile}
           onOpenSettings={onOpenSettings}
         />
@@ -1259,14 +1341,14 @@ function ManualRefinementResult({
   onEditSource: () => void;
   onUpdate: (record: RewriteHistoryRecord, feedback?: Feedback) => Promise<void>;
 }) {
+  const draft = useRewriteDraft(record, onUpdate);
   const rate = (rating: 'liked' | 'disliked') => {
-    const feedback = feedbackAfterRating(
-      record.feedback,
-      record.generatedText,
-      record.currentText,
-      rating,
+    const editFeedback = feedbackAfterEdit(record.feedback, record.generatedText, draft.text);
+    const feedback = feedbackAfterRating(editFeedback, record.generatedText, draft.text, rating);
+    draft.update(
+      { ...record, currentText: draft.text, updatedAt: new Date().toISOString(), feedback },
+      feedback,
     );
-    void onUpdate({ ...record, updatedAt: new Date().toISOString(), feedback }, feedback);
   };
   return (
     <>
@@ -1294,30 +1376,16 @@ function ManualRefinementResult({
             rating={record.feedback?.rating ?? null}
             onRate={rate}
             onRegenerate={onRegenerate}
-            onCopy={() => copyText(record.currentText)}
+            onCopy={() => copyText(draft.text)}
             canRegenerate={!running}
           />
         </div>
-        <Textarea
-          value={record.currentText}
+        <AutoGrowingTextarea
+          value={draft.text}
           aria-label="Editable refinement"
-          onChange={(event) => {
-            const feedback = feedbackAfterEdit(
-              record.feedback,
-              record.generatedText,
-              event.target.value,
-            );
-            void onUpdate(
-              {
-                ...record,
-                currentText: event.target.value,
-                updatedAt: new Date().toISOString(),
-                ...(feedback ? { feedback } : {}),
-              },
-              feedback,
-            );
-          }}
-          className="mt-3 min-h-[280px]"
+          onBlur={draft.flush}
+          onChange={(event) => draft.change(event.target.value)}
+          className="mt-3 min-h-[280px] resize-none overflow-hidden"
         />
         <AccordionRoot className="mt-3" type="single" defaultValue="original" collapsible>
           <AccordionItem value="original">

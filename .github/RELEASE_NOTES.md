@@ -1,14 +1,9 @@
-## What’s new in v0.3.0
+## What’s new in v0.3.1
 
-- Added optional visual companions for profile-grounded Refine results through Cloudflare Workers AI and FLUX.2 Klein 4B.
-- Added encrypted, device-local Cloudflare Account ID and API-token storage under **Settings → Connections**.
-- Added editable visual direction, inline generation progress, full preview, regeneration, and landscape-image download.
-- Fixed Idea research falling directly into the experience fallback when saved topics were multi-word phrases.
-- Replaced Stack Overflow’s over-constrained combined-tag request with independent relevance searches and added complete source-to-result browser coverage.
-- Added animated, cancellable Idea-search progress together with reliable back navigation and on-demand source enablement.
-- Added copy controls with success feedback to every expanded Reply, Refine, and Idea History record.
-- Ensured manual and context-menu Refine results finish with 5–10 relevant hashtags.
-- Improved Gemini structured-output handling and expanded provider, credential, source, History, Idea, and image-generation tests.
+- Made manual and context-menu Refine editors grow automatically so the full draft remains visible without an inner scrollbar.
+- Debounced Refine draft persistence to keep typing responsive while preserving the latest text before ratings and other result actions.
+- Added browser-journey coverage for long, continuously edited Refine drafts and their persisted result.
+- Hid saved Cloudflare Account IDs by default and added an explicit show/hide control matching the Workers AI token field.
 
 ## Install in Chrome
 

@@ -186,6 +186,17 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
   expect(contextHashtagCount).toBeGreaterThanOrEqual(5);
   expect(contextHashtagCount).toBeLessThanOrEqual(10);
   await expect
+    .poll(() =>
+      editableContextRefinement.evaluate(
+        (textarea) => textarea.scrollHeight <= textarea.clientHeight + 1,
+      ),
+    )
+    .toBe(true);
+  const smoothEdit = '\n\nThe final decision still belongs to the team.';
+  await editableContextRefinement.press('ControlOrMeta+End');
+  await editableContextRefinement.pressSequentially(smoothEdit, { delay: 5 });
+  await expect(editableContextRefinement).toHaveValue(new RegExp(`${smoothEdit.trim()}$`, 'u'));
+  await expect
     .poll(async () => {
       const result = (await readApp()).history.find(
         (record) => record.type === 'rewrite' && record.mode === 'context',
@@ -198,6 +209,7 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
             hasAttribution: result.currentText.includes(
               'https://www.linkedin.com/feed/update/urn:li:activity:123/',
             ),
+            hasSmoothEdit: result.currentText.endsWith(smoothEdit.trim()),
             hashtagCount: result.currentText.match(/#[\p{L}\p{N}_]+/gu)?.length ?? 0,
           }
         : null;
@@ -207,6 +219,7 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
       experience: 'I used reversible decision records during a TypeScript migration.',
       retained: true,
       hasAttribution: true,
+      hasSmoothEdit: true,
       hashtagCount: contextHashtagCount,
     });
 });

@@ -21,6 +21,7 @@ import { FieldGroup, Label } from '../../primitives/label';
 export function ImageConnectionPanel() {
   const [accountId, setAccountId] = useState('');
   const [apiToken, setApiToken] = useState('');
+  const [accountIdVisible, setAccountIdVisible] = useState(false);
   const [tokenVisible, setTokenVisible] = useState(false);
   const [hasStored, setHasStored] = useState(false);
   const [status, setStatus] = useState('');
@@ -32,20 +33,24 @@ export function ImageConnectionPanel() {
       try {
         const stored = await imageCredentialRepository.has();
         setHasStored(stored);
-        if (!stored) return;
-        const saved = await imageCredentialRepository.get();
-        setAccountId(saved?.values.accountId ?? '');
       } catch (error) {
         setStatus(toAppError(error).message);
       }
     })();
   }, []);
 
+  const revealAccountId = async () => {
+    if (!accountIdVisible && !accountId && hasStored) {
+      const saved = await imageCredentialRepository.get();
+      if (saved) setAccountId(saved.values.accountId ?? '');
+    }
+    setAccountIdVisible((current) => !current);
+  };
+
   const revealSaved = async () => {
     if (!tokenVisible && !apiToken && hasStored) {
       const saved = await imageCredentialRepository.get();
       if (saved) {
-        setAccountId(saved.values.accountId ?? '');
         setApiToken(saved.values.apiToken ?? '');
       }
     }
@@ -72,7 +77,9 @@ export function ImageConnectionPanel() {
       }
       await imageCredentialRepository.save(parsed.data);
       setHasStored(true);
+      setAccountId('');
       setApiToken('');
+      setAccountIdVisible(false);
       setTokenVisible(false);
       setStatus('Saved on this device. The first image will confirm model access.');
     } catch (error) {
@@ -114,13 +121,27 @@ export function ImageConnectionPanel() {
             </div>
             <FieldGroup>
               <Label htmlFor="cloudflare-account-id">Cloudflare Account ID</Label>
-              <Input
-                id="cloudflare-account-id"
-                value={accountId}
-                placeholder={hasStored ? 'Saved on this device' : '32-character Account ID'}
-                onChange={(event) => setAccountId(event.target.value)}
-                autoComplete="off"
-              />
+              <div className="relative">
+                <Input
+                  id="cloudflare-account-id"
+                  type={accountIdVisible ? 'text' : 'password'}
+                  value={accountId}
+                  placeholder={hasStored ? 'Saved on this device' : '32-character Account ID'}
+                  onChange={(event) => setAccountId(event.target.value)}
+                  onBlur={() => setAccountIdVisible(false)}
+                  className="pr-11"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  aria-label={`${accountIdVisible ? 'Hide' : 'Show'} Cloudflare Account ID`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void revealAccountId()}
+                  className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-primary focus-visible:outline-2 focus-visible:outline-focus"
+                >
+                  {accountIdVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </FieldGroup>
             <FieldGroup>
               <div className="flex items-center justify-between gap-2">
