@@ -4,7 +4,9 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['.output/**', '.wxt/**', 'coverage/**', 'test-results/**'] },
+  {
+    ignores: ['.output/**', '.wxt/**', 'coverage/**', 'playwright-report/**', 'test-results/**'],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
