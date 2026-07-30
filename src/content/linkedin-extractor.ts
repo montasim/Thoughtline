@@ -11,21 +11,27 @@ import type { CalibratedLayoutRecipe } from '../domain/calibration';
 import {
   findCalibratedAncestor,
   findCalibratedText,
+  inferVisibleLayout,
   matchesCalibrationPattern,
+  type InferredVisibleLayout,
 } from './layout-calibration';
 
-const EXTRACTION_VERSION = '2026.07.5';
+const EXTRACTION_VERSION = '2026.07.7';
 const MIN_REPLY_INDENT_PX = 12;
 const POST_SELECTORS = [
   '[data-urn^="urn:li:activity:"]',
   '[data-id^="urn:li:activity:"]',
   '.feed-shared-update-v2',
   '[data-view-name="feed-full-update"]',
+  '[data-testid="main-feed-activity-card"]',
+  '[data-test-id="main-feed-activity-card"]',
+  '.main-feed-activity-card',
   'article[data-id]',
   '[data-finite-scroll-hotkey-item]',
   '.occludable-update',
   '[id^="expanded"][id*="FeedType_"]',
   '[role="listitem"][componentkey^="expanded"]',
+  '[componentkey^="expanded"][componentkey*="FeedType_"]',
 ] as const;
 const POST_TEXT_SELECTORS = [
   '[data-testid="expandable-text-box"]',
@@ -63,6 +69,7 @@ const ACTOR_PROFILE_LINK_SELECTOR = [
 ].join(',');
 const COMMENT_SELECTORS = [
   '[id^="replaceableComment_urn:li:comment:"]',
+  '[componentkey^="replaceableComment_urn:li:comment:"]',
   '.comments-comment-item',
   'article.comments-comment-entity',
   '[data-id^="urn:li:comment"]',
@@ -112,19 +119,25 @@ export function extractLinkedInPost(
   const postText =
     collectText(postRoot, POST_TEXT_SELECTORS, COMMENT_SELECTORS) ||
     collectCalibratedPostText(postRoot, activeRecipes);
-  if (!postText) throw unsupported('The selected post has no visible text to analyze.');
+  if (!postText) throw unsupported('The selected post has no visible text to analyze.', 'post');
   const postAuthor = extractPostAuthor(postRoot) || 'Post author';
 
-  const commentRoots = mergeElementMatches(
-    findTopLevelMatches(postRoot, COMMENT_SELECTORS),
-    collectCalibratedCommentRoots(postRoot, activeRecipes),
+  const inferredComments = inferVisibleCommentLayouts(postRoot, target);
+  const commentRoots = collapseRepeatedCommentWrappers(
+    mergeElementMatches(
+      findTopLevelMatches(postRoot, COMMENT_SELECTORS),
+      mergeElementMatches(
+        collectCalibratedCommentRoots(postRoot, activeRecipes),
+        inferredComments.map((comment) => comment.boundary),
+      ),
+    ),
   );
   const targetComment = findTargetComment(target, commentRoots);
   const classifiedComments = classifyComments(commentRoots);
   const targetClassification = classifiedComments.find(({ root }) => root === targetComment);
   const selected = selectDiscussionComments(classifiedComments, targetComment);
   const discussion = selected.map(({ root, depth }) =>
-    extractComment(root, depth, targetComment, activeRecipes),
+    extractComment(root, depth, targetComment, activeRecipes, inferredComments),
   );
   const targetItem = discussion.find((item) => item.isTarget);
   const targetType: PostTargetType = targetItem
@@ -155,7 +168,8 @@ export function extractLinkedInPost(
     extractedAt: new Date().toISOString(),
   };
   const parsed = postContextSchema.safeParse(candidate);
-  if (!parsed.success) throw unsupported('The visible post did not pass safety validation.');
+  if (!parsed.success)
+    throw unsupported('The visible post did not pass safety validation.', 'post');
   return parsed.data;
 }
 
@@ -167,7 +181,7 @@ function findUniquePostRoot(target: Element, recipes: CalibratedLayoutRecipe[]):
       matchingAncestors.push(current);
     current = current.parentElement;
   }
-  const builtIn = matchingAncestors.at(-1) ?? null;
+  const builtIn = matchingAncestors.at(-1) ?? findStructuredPostRoot(target);
   const calibrated = recipes
     .filter((recipe) => recipe.kind === 'post')
     .map((recipe) => ({ recipe, root: findCalibratedAncestor(target, recipe) }))
@@ -185,7 +199,7 @@ function findUniquePostRoot(target: Element, recipes: CalibratedLayoutRecipe[]):
     throw new AppError(
       'unsupported-layout',
       'Calibrated post layouts disagree about the selected boundary.',
-      { recipeId: distinct[0]?.recipe.id },
+      { recipeId: distinct[0]?.recipe.id, recoveryKind: 'post' },
     );
   }
   const calibratedRoot = distinct[0]?.root ?? null;
@@ -197,11 +211,47 @@ function findUniquePostRoot(target: Element, recipes: CalibratedLayoutRecipe[]):
   ) {
     throw new AppError('unsupported-layout', 'Built-in and calibrated post extraction disagree.', {
       recipeId: distinct[0]?.recipe.id,
+      recoveryKind: 'post',
     });
   }
   const resolved = builtIn ?? calibratedRoot;
-  if (!resolved) throw unsupported('Right-click inside a visible LinkedIn post or discussion.');
+  if (!resolved)
+    throw unsupported('Right-click inside a visible LinkedIn post or discussion.', 'post');
   return resolved;
+}
+
+function findStructuredPostRoot(target: Element): Element | null {
+  let current = target.parentElement;
+  while (current && current !== document.body && current !== document.documentElement) {
+    const postTextCandidates = topLevelCandidates(current, POST_TEXT_SELECTORS, COMMENT_SELECTORS);
+    if (
+      postTextCandidates.length === 1 &&
+      hasPostBoundarySignal(current) &&
+      !current.matches(COMMENT_SELECTORS.join(','))
+    ) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function hasPostBoundarySignal(root: Element): boolean {
+  if (
+    root.matches('[data-activity-urn],[data-urn^="urn:li:activity:"],[data-id^="urn:li:activity:"]')
+  ) {
+    return true;
+  }
+  if (
+    root.querySelector(
+      '[data-activity-urn],a[href*="/feed/update/"],a[href*="/posts/"],[data-view-name="feed-actor"],[data-testid="main-feed-activity-card__entity-lockup"],[data-test-id="main-feed-activity-card__entity-lockup"]',
+    )
+  ) {
+    return true;
+  }
+  return [...root.querySelectorAll('h1,h2')].some((heading) =>
+    normalizeUntrustedText(heading.textContent ?? '').includes('Feed post'),
+  );
 }
 
 function findTargetComment(target: Element, roots: Element[]): Element | null {
@@ -211,6 +261,53 @@ function findTargetComment(target: Element, roots: Element[]): Element | null {
     matches.find(
       (candidate) => !matches.some((other) => other !== candidate && candidate.contains(other)),
     ) ?? null
+  );
+}
+
+function inferVisibleCommentLayouts(postRoot: Element, target: Element): InferredVisibleLayout[] {
+  let selected: InferredVisibleLayout;
+  try {
+    selected = inferVisibleLayout(target, 'comment');
+  } catch {
+    return [];
+  }
+  if (
+    selected.boundary === postRoot ||
+    !postRoot.contains(selected.boundary) ||
+    !selected.text ||
+    !selected.authorName
+  ) {
+    return [];
+  }
+
+  const controls = [...postRoot.querySelectorAll<HTMLElement>('button,[role="button"]')].filter(
+    (element) => {
+      if (!isElementVisible(element)) return false;
+      const label = normalizeUntrustedText(
+        element.getAttribute('aria-label') ?? element.textContent ?? '',
+      );
+      return /^reply(?:\s|$)/iu.test(label);
+    },
+  );
+  const inferred = [selected];
+  for (const control of controls) {
+    try {
+      const candidate = inferVisibleLayout(control, 'comment');
+      if (
+        candidate.boundary !== postRoot &&
+        postRoot.contains(candidate.boundary) &&
+        candidate.text &&
+        candidate.authorName
+      ) {
+        inferred.push(candidate);
+      }
+    } catch {
+      // One unsupported control must not discard other safely inferred discussion items.
+    }
+  }
+  return inferred.filter(
+    (candidate, index) =>
+      inferred.findIndex((other) => other.boundary === candidate.boundary) === index,
   );
 }
 
@@ -228,12 +325,16 @@ function selectDiscussionComments(
 ): ClassifiedComment[] {
   if (!target) return comments;
   const targetIndex = comments.findIndex(({ root }) => root === target);
-  if (targetIndex < 0) throw unsupported('The selected discussion could not be matched safely.');
+  if (targetIndex < 0)
+    throw unsupported('The selected discussion could not be matched safely.', 'comment');
   let start = targetIndex;
   if (comments[targetIndex]?.depth === 1) {
     while (start >= 0 && comments[start]?.depth !== 0) start -= 1;
     if (start < 0) {
-      throw unsupported('The selected reply has no visible parent comment, so nothing was sent.');
+      throw unsupported(
+        'The selected reply has no visible parent comment, so nothing was sent.',
+        'comment',
+      );
     }
   }
   let end = start + 1;
@@ -246,6 +347,7 @@ function extractComment(
   depth: 0 | 1,
   target: Element | null,
   recipes: CalibratedLayoutRecipe[],
+  inferred: InferredVisibleLayout[],
 ): DiscussionItem {
   const recipe = recipes.find(
     (candidate) =>
@@ -253,12 +355,19 @@ function extractComment(
   );
   const text =
     collectCommentText(root, COMMENT_TEXT_SELECTORS) ||
-    (recipe ? normalizeUntrustedText(visibleText(findCalibratedText(root, recipe) ?? root)) : '');
+    (recipe ? normalizeUntrustedText(visibleText(findCalibratedText(root, recipe) ?? root)) : '') ||
+    inferred.find((candidate) => candidate.boundary === root)?.text ||
+    '';
   const author =
     collectCommentText(root, COMMENT_AUTHOR_SELECTORS) ||
-    (recipe ? extractCalibratedProfileName(root, recipe) : extractProfileName(root, true));
+    (recipe ? extractCalibratedProfileName(root, recipe) : extractProfileName(root, true)) ||
+    inferred.find((candidate) => candidate.boundary === root)?.authorName ||
+    '';
   if (!text || !author) {
-    throw unsupported('A visible discussion item used an unsupported layout, so nothing was sent.');
+    throw unsupported(
+      'A visible discussion item used an unsupported layout, so nothing was sent.',
+      'comment',
+    );
   }
   return {
     id: root.getAttribute('data-id')?.slice(0, 160) || createId(),
@@ -422,20 +531,28 @@ function collectText(
   selectors: readonly string[],
   excludedAncestors: readonly string[] = [],
 ): string {
+  const topLevel = topLevelCandidates(root, selectors, excludedAncestors);
+  return normalizeUntrustedText(
+    topLevel
+      .map((element) => visibleText(element))
+      .filter(Boolean)
+      .join('\n'),
+  );
+}
+
+function topLevelCandidates(
+  root: Element,
+  selectors: readonly string[],
+  excludedAncestors: readonly string[] = [],
+): Element[] {
   const candidates = selectors
     .flatMap((selector) => [...root.querySelectorAll(selector)])
     .filter(
       (candidate) =>
         !excludedAncestors.some((selector) => candidate.closest(selector)?.matches(selector)),
     );
-  const topLevel = candidates.filter(
+  return candidates.filter(
     (candidate) => !candidates.some((other) => other !== candidate && other.contains(candidate)),
-  );
-  return normalizeUntrustedText(
-    topLevel
-      .map((element) => visibleText(element))
-      .filter(Boolean)
-      .join('\n'),
   );
 }
 
@@ -449,6 +566,26 @@ function findTopLevelMatches(root: Element, selectors: readonly string[]): Eleme
   return [...root.querySelectorAll(selectors.join(','))].filter((element) =>
     isElementVisible(element as HTMLElement),
   );
+}
+
+function collapseRepeatedCommentWrappers(roots: Element[]): Element[] {
+  return roots.filter((candidate) => {
+    const identity = commentIdentity(candidate);
+    if (!identity) return true;
+    return !roots.some(
+      (other) =>
+        other !== candidate && candidate.contains(other) && commentIdentity(other) === identity,
+    );
+  });
+}
+
+function commentIdentity(element: Element): string {
+  for (const name of ['data-id', 'id', 'componentkey'] as const) {
+    const value = element.getAttribute(name) ?? '';
+    const start = value.indexOf('urn:li:comment:');
+    if (start >= 0) return value.slice(start);
+  }
+  return '';
 }
 
 function isElementVisible(element: HTMLElement): boolean {
@@ -473,6 +610,12 @@ function semanticDepth(root: Element): 0 | 1 | null {
   if (root.closest('.comments-comment-item__replies-list, [data-view-name="comment-replies"]')) {
     return 1;
   }
+  const identity = commentIdentity(root);
+  let parentComment = root.parentElement?.closest(COMMENT_SELECTORS.join(',')) ?? null;
+  while (parentComment && identity && commentIdentity(parentComment) === identity) {
+    parentComment = parentComment.parentElement?.closest(COMMENT_SELECTORS.join(',')) ?? null;
+  }
+  if (parentComment && parentComment !== root) return 1;
   return null;
 }
 
@@ -552,10 +695,11 @@ function canonicalLinkedInUrl(value: string): string | undefined {
   }
 }
 
-function detectSurface(href: string): 'feed' | 'post-detail' {
-  return href.includes('/feed/update/') || href.includes('/posts/') ? 'post-detail' : 'feed';
+function detectSurface(href: string): 'feed' | 'notifications' | 'post-detail' {
+  if (href.includes('/feed/update/') || href.includes('/posts/')) return 'post-detail';
+  return href.includes('/notifications/') ? 'notifications' : 'feed';
 }
 
-function unsupported(message: string): AppError {
-  return new AppError('unsupported-layout', message);
+function unsupported(message: string, recoveryKind: 'post' | 'comment'): AppError {
+  return new AppError('unsupported-layout', message, { recoveryKind });
 }

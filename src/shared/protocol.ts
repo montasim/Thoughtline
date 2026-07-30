@@ -43,6 +43,7 @@ export const runtimeResponseSchema = z.union([
     code: z.string(),
     message: z.string(),
     recipeId: uuidSchema.optional(),
+    recoveryKind: calibrationKindSchema.optional(),
   }),
 ]);
 export type RuntimeResponse = z.infer<typeof runtimeResponseSchema>;

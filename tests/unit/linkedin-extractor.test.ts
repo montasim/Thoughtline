@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { providerOrchestrator } from '../../src/application/provider-orchestrator';
+import { analyzeReply } from '../../src/application/workflows';
 import { extractLinkedInPost } from '../../src/content/linkedin-extractor';
 import type { CalibratedLayoutRecipe } from '../../src/domain/calibration';
 import { createId } from '../../src/shared/id';
+import { visualAppData } from '../fixtures/app-data';
 
 const visibleRect = {
   x: 0,
@@ -25,14 +28,228 @@ describe('passive LinkedIn post extraction', () => {
     const target = document.querySelector('[data-target="reply"]');
     if (!target) throw new Error('Fixture target missing');
 
-    const context = extractLinkedInPost(target, 'https://www.linkedin.com/feed/');
+    const context = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/feed/update/urn:li:activity:123/',
+    );
 
     expect(context.author).toBe('Maya Chen');
+    expect(context.surface).toBe('post-detail');
     expect(context.postText).toContain('architecture patterns');
     expect(context.responseTarget).toMatchObject({ type: 'reply', author: 'Rafi Ahmed' });
     expect(context.discussion.map((item) => item.author)).toEqual(['Leena Das', 'Rafi Ahmed']);
     expect(context.discussion).toHaveLength(2);
     expect(context.postPermalink).toContain('urn:li:activity:123');
+  });
+
+  it('targets a top-level comment inside the current notifications activity card', () => {
+    document.body.innerHTML = notificationActivityCardFixture();
+    const target = document.querySelector('[data-target="notification-comment"]');
+    if (!target) throw new Error('Notification comment target missing');
+
+    const context = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/notifications/?filter=all',
+    );
+
+    expect(context.surface).toBe('notifications');
+    expect(context.author).toBe('Mohammad Montasim Al Mamun Shuvo');
+    expect(context.responseTarget).toEqual({
+      type: 'comment',
+      author: 'Abdur Rahim Sheikh',
+      text: 'You missed pgvector. They literally let you query vector like we do in db.',
+    });
+    expect(context.discussion).toHaveLength(1);
+    expect(JSON.stringify(context)).not.toContain('Unrelated top-level comment');
+  });
+
+  it('collapses LinkedIn repeated wrappers for the same modern comment identity', () => {
+    document.body.innerHTML = repeatedModernCommentWrapperFixture();
+    const target = document.querySelector('[data-target="modern-repeated-comment"]');
+    if (!target) throw new Error('Modern repeated-wrapper comment target missing');
+
+    const context = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/feed/update/urn:li:activity:7488065789913133056/',
+    );
+
+    expect(context.responseTarget).toEqual({
+      type: 'comment',
+      author: 'Abdur Rahim Sheikh',
+      text: 'You missed pgvector. They literally let you query vector like we do in db.',
+    });
+    expect(context.discussion).toHaveLength(1);
+    expect(context.discussion[0]).toMatchObject({
+      author: 'Abdur Rahim Sheikh',
+      depth: 0,
+      isTarget: true,
+    });
+  });
+
+  it('keeps the exact modern comment target through four-direction reply generation', async () => {
+    document.body.innerHTML = repeatedModernCommentWrapperFixture();
+    const target = document.querySelector('[data-target="modern-repeated-comment"]');
+    if (!target) throw new Error('Modern repeated-wrapper comment target missing');
+    const context = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/feed/update/urn:li:activity:7488065789913133056/',
+    );
+    const app = visualAppData();
+    const run = vi.spyOn(providerOrchestrator, 'run').mockResolvedValue({
+      value: commentReplyOutput(),
+      provider: 'gemini',
+      usedFallback: false,
+    });
+
+    try {
+      const completed = await analyzeReply(context, app.profile, app.learnedPreferences);
+      const request = run.mock.calls[0]?.[0];
+
+      expect(request?.untrustedEnvelope).toMatchObject({
+        workflow: 'reply',
+        source: {
+          responseTarget: {
+            type: 'comment',
+            author: 'Abdur Rahim Sheikh',
+            text: 'You missed pgvector. They literally let you query vector like we do in db.',
+          },
+        },
+      });
+      expect(completed.record.source).toMatchObject({
+        targetType: 'comment',
+        targetAuthor: 'Abdur Rahim Sheikh',
+        targetExcerpt: 'You missed pgvector. They literally let you query vector like we do in db.',
+      });
+      expect(completed.record.directions).toHaveLength(4);
+      expect(completed.record.directions.map((direction) => direction.id)).toEqual([
+        'insight',
+        'question',
+        'extend',
+        'challenge',
+      ]);
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(request?.systemInstruction).toContain('silently perform a semantic audit');
+    } finally {
+      run.mockRestore();
+    }
+  });
+
+  it('uses one provider operation to self-review every direction against the selected comment', async () => {
+    document.body.innerHTML = repeatedModernCommentWrapperFixture();
+    const target = document.querySelector('[data-target="modern-repeated-comment"]');
+    if (!target) throw new Error('Modern repeated-wrapper comment target missing');
+    const context = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/feed/update/urn:li:activity:7488065789913133056/',
+    );
+    const app = visualAppData();
+    const run = vi.spyOn(providerOrchestrator, 'run').mockResolvedValue({
+      value: commentReplyOutput(),
+      provider: 'gemini',
+      usedFallback: false,
+    });
+
+    try {
+      const completed = await analyzeReply(context, app.profile, app.learnedPreferences);
+      const request = run.mock.calls[0]?.[0];
+
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(request?.systemInstruction).toContain('silently perform a semantic audit');
+      expect(request?.schema.safeParse(commentReplyOutput()).success).toBe(true);
+      expect(completed.record.directions[0]?.currentText).toContain('pgvector');
+      expect(completed.record.directions[1]?.currentText).toContain('pgvector');
+      expect(completed.record.source.targetType).toBe('comment');
+    } finally {
+      run.mockRestore();
+    }
+  });
+
+  it('preserves a genuinely nested reply inside repeated modern wrappers', () => {
+    document.body.innerHTML = repeatedModernCommentWrapperFixture(true);
+    const target = document.querySelector('[data-target="modern-repeated-reply"]');
+    if (!target) throw new Error('Modern repeated-wrapper reply target missing');
+
+    const context = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/feed/update/urn:li:activity:7488065789913133056/',
+    );
+
+    expect(context.responseTarget).toEqual({
+      type: 'reply',
+      author: 'Noor Khan',
+      text: 'It is especially useful when vector search belongs beside relational filters.',
+    });
+    expect(context.discussion.map((item) => [item.author, item.depth])).toEqual([
+      ['Abdur Rahim Sheikh', 0],
+      ['Noor Khan', 1],
+    ]);
+  });
+
+  it('recovers a notification post from bounded structural signals when its wrapper is unknown', () => {
+    document.body.innerHTML = notificationActivityCardFixture().replace(
+      'data-testid="main-feed-activity-card"',
+      'data-layout="new-notification-shell"',
+    );
+    const target = document.querySelector('[data-target="notification-comment"]');
+    if (!target) throw new Error('Notification comment target missing');
+
+    const context = extractLinkedInPost(target, 'https://www.linkedin.com/notifications/');
+
+    expect(context.responseTarget).toMatchObject({
+      type: 'comment',
+      author: 'Abdur Rahim Sheikh',
+    });
+    expect(context.discussion).toHaveLength(1);
+  });
+
+  it('infers the exact top-level comment from visible structure without a known wrapper selector', () => {
+    document.body.innerHTML = selectorlessDiscussionFixture();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const left = this.closest('[data-layout="reply"]') ? 48 : 20;
+      return { ...visibleRect, x: left, left, right: left + visibleRect.width };
+    });
+    const target = document.querySelector('[data-target="selectorless-comment"]');
+    if (!target) throw new Error('Selectorless comment target missing');
+
+    const context = extractLinkedInPost(target, 'https://www.linkedin.com/notifications/');
+
+    expect(context.responseTarget).toEqual({
+      type: 'comment',
+      author: 'Leena Das',
+      text: 'The selected structural comment.',
+    });
+    expect(context.discussion.map((item) => item.author)).toEqual(['Leena Das', 'Rafi Ahmed']);
+    expect(JSON.stringify(context)).not.toContain('Unrelated Person');
+  });
+
+  it('infers a selectorless nested reply and retains only its visible parent thread', () => {
+    document.body.innerHTML = selectorlessDiscussionFixture();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const left = this.closest('[data-layout="reply"]') ? 48 : 20;
+      return { ...visibleRect, x: left, left, right: left + visibleRect.width };
+    });
+    const target = document.querySelector('[data-target="selectorless-reply"]');
+    if (!target) throw new Error('Selectorless reply target missing');
+
+    const context = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/feed/update/urn:li:activity:structural/',
+    );
+
+    expect(context.responseTarget).toEqual({
+      type: 'reply',
+      author: 'Rafi Ahmed',
+      text: 'The nested structural reply.',
+    });
+    expect(context.discussion.map((item) => [item.author, item.depth])).toEqual([
+      ['Leena Das', 0],
+      ['Rafi Ahmed', 1],
+    ]);
+    expect(JSON.stringify(context)).not.toContain('Unrelated Person');
   });
 
   it('extracts all rendered visible threads for a post target and excludes hidden discussion', () => {
@@ -292,6 +509,195 @@ function currentSemanticFeedFixture(): string {
         </div>
       </div>
     </div>`;
+}
+
+function notificationActivityCardFixture(): string {
+  return `
+    <section data-testid="main-feed-activity-card">
+      <div data-activity-urn="urn:li:activity:999">
+        <div data-testid="main-feed-activity-card__entity-lockup">
+          <a href="https://www.linkedin.com/in/montasim/">
+            <img alt="View Mohammad Montasim Al Mamun Shuvo’s profile" />
+          </a>
+        </div>
+        <p>
+          <span data-testid="expandable-text-box">
+            PostgreSQL কেন এখন ডেভেলপারদের প্রথম পছন্দ?
+          </span>
+        </p>
+        <a href="https://www.linkedin.com/feed/update/urn:li:activity:999/">1d</a>
+        <div componentkey="replaceableComment_urn:li:comment:(urn:li:activity:999,1)">
+          <a href="https://www.linkedin.com/in/abdur-rahim/">
+            <img alt="View Abdur Rahim Sheikh’s profile" />
+          </a>
+          <p>
+            <span data-target="notification-comment" data-testid="expandable-text-box">
+              You missed pgvector. They literally let you query vector like we do in db.
+            </span>
+          </p>
+          <button aria-label="Reply">Reply</button>
+        </div>
+        <div componentkey="replaceableComment_urn:li:comment:(urn:li:activity:999,2)">
+          <a href="https://www.linkedin.com/in/unrelated/">
+            <img alt="View Unrelated Person’s profile" />
+          </a>
+          <p><span data-testid="expandable-text-box">Unrelated top-level comment</span></p>
+          <button aria-label="Reply">Reply</button>
+        </div>
+      </div>
+    </section>`;
+}
+
+function repeatedModernCommentWrapperFixture(includeReply = false): string {
+  const commentKey =
+    'replaceableComment_urn:li:comment:(urn:li:activity:7488065789913133056,7488282867484262400)';
+  const replyKey =
+    'replaceableComment_urn:li:comment:(urn:li:activity:7488065789913133056,7488283000000000000)';
+  return `
+    <div id="expanded-modern-FeedType_FEED_DETAIL">
+      <div role="listitem" componentkey="expanded-modern-FeedType_FEED_DETAIL">
+        <h2><span>Feed post</span></h2>
+        <a href="https://www.linkedin.com/in/montasim/">
+          <img alt="View Mohammad Montasim Al Mamun Shuvo’s profile" />
+        </a>
+        <p>
+          <span data-testid="expandable-text-box">
+            PostgreSQL কেন এখন ডেভেলপারদের প্রথম পছন্দ?
+          </span>
+        </p>
+        <a href="https://www.linkedin.com/feed/update/urn:li:activity:7488065789913133056/">
+          Open post
+        </a>
+        <div componentkey="${commentKey}">
+          <div id="${commentKey}" componentkey="${commentKey}">
+            <div componentkey="${commentKey}">
+              <a href="https://www.linkedin.com/in/abdur-rahim-sheikh/">
+                <img alt="View Abdur Rahim Sheikh’s profile, open to work" />
+                <span aria-hidden="true">Abdur Rahim Sheikh • 1st</span>
+              </a>
+              <p>
+                <span
+                  data-target="modern-repeated-comment"
+                  data-testid="expandable-text-box"
+                >
+                  You missed pgvector. They literally let you query vector like we do in db.
+                </span>
+              </p>
+              <button aria-label="Reply">Reply</button>
+              ${
+                includeReply
+                  ? `
+                    <div componentkey="${replyKey}">
+                      <div id="${replyKey}" componentkey="${replyKey}">
+                        <div componentkey="${replyKey}">
+                          <a href="https://www.linkedin.com/in/noor-khan/">
+                            <img alt="View Noor Khan’s profile" />
+                            <span aria-hidden="true">Noor Khan • 1st</span>
+                          </a>
+                          <p>
+                            <span
+                              data-target="modern-repeated-reply"
+                              data-testid="expandable-text-box"
+                            >
+                              It is especially useful when vector search belongs beside relational filters.
+                            </span>
+                          </p>
+                          <button aria-label="Reply">Reply</button>
+                        </div>
+                      </div>
+                    </div>`
+                  : ''
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function commentReplyOutput() {
+  return {
+    title: 'Pgvector belongs in the comparison',
+    summary: {
+      english: 'The post compares PostgreSQL capabilities.',
+      bangla: 'পোস্টটি PostgreSQL-এর সক্ষমতা তুলনা করে।',
+    },
+    reviewNote: '',
+    directions: [
+      {
+        id: 'insight' as const,
+        generatedText:
+          'That is a useful addition—the vector query support makes pgvector directly relevant to this comparison.',
+        currentText:
+          'That is a useful addition—the vector query support makes pgvector directly relevant to this comparison.',
+        approach: 'Acknowledge the concrete omission.',
+      },
+      {
+        id: 'question' as const,
+        generatedText:
+          'Have you found pgvector’s database-native query model useful beyond this PostgreSQL comparison?',
+        currentText:
+          'Have you found pgvector’s database-native query model useful beyond this PostgreSQL comparison?',
+        approach: 'Ask about the stated query model.',
+      },
+      {
+        id: 'extend' as const,
+        generatedText:
+          'Including pgvector would extend the ecosystem point with the exact database-native vector querying you mentioned.',
+        currentText:
+          'Including pgvector would extend the ecosystem point with the exact database-native vector querying you mentioned.',
+        approach: 'Connect the comment to the post.',
+      },
+      {
+        id: 'challenge' as const,
+        generatedText:
+          'Pgvector strengthens the list, though the comment’s database-native query point may deserve its own qualification.',
+        currentText:
+          'Pgvector strengthens the list, though the comment’s database-native query point may deserve its own qualification.',
+        approach: 'Qualify the claim respectfully.',
+      },
+    ],
+  };
+}
+
+function selectorlessDiscussionFixture(): string {
+  return `
+    <article class="main-feed-activity-card" data-id="structural-post">
+      <a href="https://www.linkedin.com/in/maya-chen/">
+        <img alt="View Maya Chen’s profile" />
+      </a>
+      <p><span data-testid="expandable-text-box">A post with a changed comment layout.</span></p>
+      <a href="https://www.linkedin.com/feed/update/urn:li:activity:structural/">1d</a>
+      <div data-layout="comment">
+        <a href="https://www.linkedin.com/in/leena-das/">
+          <img alt="View Leena Das’s profile" />
+        </a>
+        <p>
+          <span data-target="selectorless-comment" data-testid="expandable-text-box">
+            The selected structural comment.
+          </span>
+        </p>
+        <button aria-label="Reply">Reply</button>
+      </div>
+      <div data-layout="reply">
+        <a href="https://www.linkedin.com/in/rafi-ahmed/">
+          <img alt="View Rafi Ahmed’s profile" />
+        </a>
+        <p>
+          <span data-target="selectorless-reply" data-testid="expandable-text-box">
+            The nested structural reply.
+          </span>
+        </p>
+        <button aria-label="Reply">Reply</button>
+      </div>
+      <div data-layout="unrelated">
+        <a href="https://www.linkedin.com/in/unrelated/">
+          <img alt="View Unrelated Person’s profile" />
+        </a>
+        <p><span data-testid="expandable-text-box">Unrelated structural comment.</span></p>
+        <button aria-label="Reply">Reply</button>
+      </div>
+    </article>`;
 }
 
 function fixture(): string {

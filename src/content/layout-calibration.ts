@@ -55,6 +55,27 @@ let ephemeralCalibration: {
 let outline: HTMLDivElement | null = null;
 let outlineTimer: number | null = null;
 
+export interface InferredVisibleLayout {
+  boundary: Element;
+  primaryText: Element;
+  author: Element | null;
+  authorName: string;
+  text: string;
+}
+
+export function inferVisibleLayout(target: Element, kind: CalibrationKind): InferredVisibleLayout {
+  const boundary = inferBoundary(target, kind);
+  const primaryText = inferPrimaryText(boundary, kind);
+  const author = inferAuthorNode(boundary, kind);
+  return {
+    boundary,
+    primaryText,
+    author,
+    authorName: author ? extractProfileName(author) : '',
+    text: normalizeUntrustedText(visibleText(primaryText)),
+  };
+}
+
 export function captureLayoutCalibration(
   target: Element,
   requestId: string,
@@ -64,9 +85,10 @@ export function captureLayoutCalibration(
     throw new AppError('no-post-found', 'Right-click the LinkedIn item again.');
   }
   clearCalibrationCapture();
-  const inferredBoundary = inferBoundary(target, kind);
-  const primaryText = inferPrimaryText(inferredBoundary, kind);
-  const author = inferAuthorNode(inferredBoundary, kind);
+  const inferred = inferVisibleLayout(target, kind);
+  const inferredBoundary = inferred.boundary;
+  const primaryText = inferred.primaryText;
+  const author = inferred.author;
   const regionRoot = chooseEvidenceRegion(inferredBoundary);
   const serialized = serializeEvidence(regionRoot, target, [
     inferredBoundary,
@@ -624,10 +646,11 @@ function rectOf(element: Element): CalibrationRect {
   };
 }
 
-function detectSurface(): 'feed' | 'post-detail' {
-  return location.href.includes('/feed/update/') || location.href.includes('/posts/')
-    ? 'post-detail'
-    : 'feed';
+function detectSurface(): 'feed' | 'notifications' | 'post-detail' {
+  if (location.href.includes('/feed/update/') || location.href.includes('/posts/')) {
+    return 'post-detail';
+  }
+  return location.href.includes('/notifications/') ? 'notifications' : 'feed';
 }
 
 function requireNodeId(capture: LiveCapture, element: Element): string {

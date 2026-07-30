@@ -19,6 +19,7 @@ import {
 } from '../../../domain/schemas';
 import { hasLinkedInPermission, hasProviderPermissions } from '../../../infrastructure/permissions';
 import { storageRepository } from '../../../infrastructure/storage/chrome-storage';
+import { createId } from '../../../shared/id';
 import type { RuntimeResponse } from '../../../shared/protocol';
 import { useForegroundJob } from '../../hooks/use-foreground-job';
 import { useAppStore } from '../../state/app-store';
@@ -180,6 +181,9 @@ export function ReplyView({
           throw new AppError(
             'unsupported-layout',
             response.ok ? 'No post was returned.' : response.message,
+            {
+              recoveryKind: response.ok ? 'post' : response.recoveryKind,
+            },
           );
         }
         const context = postContextSchema.safeParse(response.context);
@@ -187,6 +191,7 @@ export function ReplyView({
           throw new AppError(
             'unsupported-layout',
             'The selected post did not pass safety validation.',
+            { recoveryKind: 'post' },
           );
         }
         await updateStage('validating');
@@ -218,13 +223,24 @@ export function ReplyView({
       } catch (error) {
         const resolved =
           error instanceof AppError ? error : new AppError('unknown', 'The analysis failed.');
+        const recoveryKind =
+          resolved.causeValue &&
+          typeof resolved.causeValue === 'object' &&
+          'recoveryKind' in resolved.causeValue &&
+          (resolved.causeValue.recoveryKind === 'post' ||
+            resolved.causeValue.recoveryKind === 'comment')
+            ? resolved.causeValue.recoveryKind
+            : undefined;
         await storageRepository.updateSession((current) => ({
           ...current,
           analysis: {
             status: 'error',
             requestId: analysis.requestId,
+            tabId: analysis.tabId,
+            frameId: analysis.frameId,
             code: resolved.code,
             message: resolved.message,
+            ...(recoveryKind ? { recoveryKind } : {}),
           },
         }));
         throw resolved;
@@ -233,6 +249,31 @@ export function ReplyView({
   }, [app, job, refresh, session]);
 
   if (!app || !session) return null;
+  const startCalibration = async (kind: 'post' | 'comment') => {
+    if (
+      session.analysis.status !== 'error' ||
+      typeof session.analysis.tabId !== 'number' ||
+      typeof session.analysis.frameId !== 'number'
+    ) {
+      return;
+    }
+    const { tabId, frameId } = session.analysis;
+    await storageRepository.updateSession((current) => ({
+      ...current,
+      activeTab: 'reply',
+      analysis: { status: 'idle' },
+      calibration: {
+        status: 'pending',
+        requestId: createId(),
+        tabId,
+        frameId,
+        kind,
+        mode: 'local',
+        requestedAt: new Date().toISOString(),
+      },
+    }));
+    await refresh();
+  };
   if (
     session.analysis.status === 'pending' ||
     session.analysis.status === 'running' ||
@@ -268,6 +309,27 @@ export function ReplyView({
               description="Thoughtline is checking permissions, AI services, and your writing profile."
             />
           )}
+        </div>
+      );
+    }
+    const recoveryKind = session.analysis.recoveryKind;
+    if (
+      session.analysis.code === 'unsupported-layout' &&
+      recoveryKind &&
+      typeof session.analysis.tabId === 'number'
+    ) {
+      const targetLabel = recoveryKind === 'post' ? 'post' : 'comment';
+      return (
+        <div className="pt-4">
+          <EmptyState
+            title={`${recoveryKind === 'post' ? 'Post' : 'Comment'} layout changed`}
+            description={`Thoughtline couldn’t safely identify the selected ${targetLabel} in LinkedIn’s current layout. Calibrate it on this device, then right-click the comment again. Nothing was sent to an AI provider.`}
+            action={
+              <Button onClick={() => void startCalibration(recoveryKind)}>
+                Calibrate selected {targetLabel}
+              </Button>
+            }
+          />
         </div>
       );
     }
@@ -373,12 +435,24 @@ export function ReplyView({
   };
   const isRegenerating = job.running && regenerationTarget !== null;
   const regenerationLabel = DIRECTION_LABELS[regenerationTarget ?? selected.id];
+  const targetType = record.source.targetType ?? 'post';
+  const targetAuthor = record.source.targetAuthor ?? record.source.author;
+  const isDiscussionTarget = targetType !== 'post';
+  const targetLabel = targetType === 'reply' ? 'Selected reply' : 'Selected comment';
 
   return (
     <>
       <PageHeading
-        title={`Replying to ${record.source.author}’s post`}
-        description={`Source post${record.source.wordCount ? ` · ${String(record.source.wordCount)} words` : ''}`}
+        title={
+          isDiscussionTarget
+            ? `Replying to ${targetAuthor}`
+            : `Replying to ${record.source.author}’s post`
+        }
+        description={
+          isDiscussionTarget
+            ? `${targetType === 'reply' ? 'Reply' : 'Comment'} target · ${record.source.author}’s post`
+            : `Source post${record.source.wordCount ? ` · ${String(record.source.wordCount)} words` : ''}`
+        }
         compact
         action={
           <span className="mt-0.5 inline-flex items-center gap-2 whitespace-nowrap font-utility text-[10px] font-medium text-proof">
@@ -406,6 +480,19 @@ export function ReplyView({
         </div>
       ) : null}
       <Card className="space-y-3 p-4">
+        {isDiscussionTarget ? (
+          <div
+            aria-label={targetLabel}
+            className="border-l-2 border-proof bg-proof-soft/65 px-3 py-2.5"
+          >
+            <span className="font-utility text-[9.5px] font-medium uppercase tracking-[0.11em] text-proof">
+              {targetLabel}
+            </span>
+            <p className="mt-1.5 line-clamp-4 text-[11.5px] leading-relaxed text-ink">
+              “{record.source.targetExcerpt}”
+            </p>
+          </div>
+        ) : null}
         <SummaryCard summary={record.summary} language={language} onLanguageChange={setLanguage} />
         <ReviewNote>{record.reviewNote}</ReviewNote>
         <TabsRoot

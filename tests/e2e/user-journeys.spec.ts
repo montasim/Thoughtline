@@ -244,6 +244,66 @@ test('a writer can turn a real lesson into an AI-assisted evergreen post', async
     .toBe(2);
 });
 
+test('a writer can verify the exact comment or nested reply target before copying', async () => {
+  const cases = [
+    {
+      type: 'comment' as const,
+      author: 'Abdur Rahim Sheikh',
+      excerpt: 'You missed pgvector. They literally let you query vector like we do in db.',
+      label: 'Selected comment',
+      description: 'Comment target · Maya Chen’s post',
+    },
+    {
+      type: 'reply' as const,
+      author: 'Rafi Ahmed',
+      excerpt: 'Especially the expected lifetime.',
+      label: 'Selected reply',
+      description: 'Reply target · Maya Chen’s post',
+    },
+  ];
+
+  for (const target of cases) {
+    const app = visualAppData();
+    const reply = app.history.find((record) => record.type === 'reply');
+    if (reply?.type !== 'reply') throw new Error('Reply fixture missing');
+    reply.source.targetType = target.type;
+    reply.source.targetAuthor = target.author;
+    reply.source.targetExcerpt = target.excerpt;
+    const session = visualSession('reply');
+    session.activeRecordId = reply.id;
+    await seedState(app, session);
+
+    await expect(page.getByRole('heading', { name: `Replying to ${target.author}` })).toBeVisible();
+    await expect(page.getByText(target.description, { exact: true })).toBeVisible();
+    await expect(page.getByLabel(target.label)).toContainText(target.excerpt);
+    await expect(page.getByLabel('Editable reply')).toBeVisible();
+    await expect(
+      page.getByRole('tab', { name: /^(Insight|Question|Extend|Challenge)$/u }),
+    ).toHaveCount(4);
+  }
+});
+
+test('an unsupported LinkedIn boundary offers direct on-device calibration', async () => {
+  const session = visualSession('reply');
+  delete session.activeRecordId;
+  session.analysis = {
+    status: 'error',
+    requestId: '20000000-0000-4000-8000-000000000002',
+    tabId: 7,
+    frameId: 0,
+    code: 'unsupported-layout',
+    message: 'Right-click inside a visible LinkedIn post or discussion.',
+    recoveryKind: 'post',
+  };
+  await seedState(visualAppData(), session);
+
+  await expect(page.getByRole('heading', { name: 'Post layout changed' })).toBeVisible();
+  await expect(
+    page.getByText('Nothing was sent to an AI provider.', { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Calibrate selected post' })).toBeVisible();
+});
+
 test('a writer can choose, edit, rate, and reopen a reply direction', async () => {
   await seed('reply');
   const editedReply = 'Which constraint would make this architecture decision worth revisiting?';

@@ -4,11 +4,12 @@ Thoughtline is a user-controlled Chrome side-panel extension for understanding a
 
 > Status: functional development release for Chrome 120+. Scheduling is a visual preview only; it does not run jobs or send email until the separate scheduling API is integrated.
 
-## Latest release: v0.3.1
+## Latest release: v0.3.2
 
-- Made Refine editors grow with their content so the complete draft stays visible while writing.
-- Debounced Refine draft persistence for smooth typing while preserving edits on blur, copy, rating, and image generation.
-- Hid saved Cloudflare Account IDs by default with the same explicit reveal control used for Workers AI tokens.
+- Added exact LinkedIn comment and nested-reply targeting across feed, notification, and post-detail layouts.
+- Added visible target author and excerpt confirmation before copying a generated reply.
+- Added guarded recovery for modern repeated comment wrappers and device-local layout calibration.
+- Kept comment replies focused on the selected target through one provider operation, avoiding duplicate fallback requests.
 
 ## Product tour
 
@@ -171,7 +172,7 @@ The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md)
 Update the package and extension version, refresh `.github/RELEASE_NOTES.md`, and push a matching `v*` tag:
 
 ```bash
-VERSION=v0.3.1
+VERSION=v0.3.2
 git tag "$VERSION"
 git push origin "$VERSION"
 ```

@@ -1,9 +1,12 @@
-## What’s new in v0.3.1
+## What’s new in v0.3.2
 
-- Made manual and context-menu Refine editors grow automatically so the full draft remains visible without an inner scrollbar.
-- Debounced Refine draft persistence to keep typing responsive while preserving the latest text before ratings and other result actions.
-- Added browser-journey coverage for long, continuously edited Refine drafts and their persisted result.
-- Hid saved Cloudflare Account IDs by default and added an explicit show/hide control matching the Workers AI token field.
+- Added reliable targeting for visible LinkedIn comments and nested replies across feed, notification, and post-detail pages.
+- Added explicit **Replying to [author]** confirmation with the selected target excerpt in the side panel.
+- Limited comment-target context to the original post and visible parent thread while excluding unrelated or hidden discussions.
+- Added guarded support for LinkedIn’s modern repeated comment wrappers without confusing duplicate wrappers for nested replies.
+- Added direct on-device calibration recovery when LinkedIn’s layout cannot be recognized, and fixed calibration requests expiring during routine panel refreshes.
+- Kept AI reply generation focused on the exact selected target through one provider operation, preventing duplicate review calls from cascading into fallback rate limits.
+- Added production content-script, extraction-to-generation, top-level comment, nested-reply, calibration-lifecycle, and browser-journey coverage.
 
 ## Install in Chrome
 

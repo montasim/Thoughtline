@@ -79,11 +79,20 @@ export default defineUnlistedScript(() => {
           typeof appError.causeValue.recipeId === 'string'
             ? appError.causeValue.recipeId
             : undefined;
+        const recoveryKind =
+          appError.causeValue &&
+          typeof appError.causeValue === 'object' &&
+          'recoveryKind' in appError.causeValue &&
+          (appError.causeValue.recoveryKind === 'post' ||
+            appError.causeValue.recoveryKind === 'comment')
+            ? appError.causeValue.recoveryKind
+            : undefined;
         sendResponse({
           ok: false,
           code: appError.code,
           message: appError.message,
           ...(cause ? { recipeId: cause } : {}),
+          ...(recoveryKind ? { recoveryKind } : {}),
         });
       }
       return false;

@@ -9,7 +9,7 @@ export type CalibrationKind = z.infer<typeof calibrationKindSchema>;
 export const calibrationModeSchema = z.enum(['local', 'ai']);
 export type CalibrationMode = z.infer<typeof calibrationModeSchema>;
 
-export const calibrationSurfaceSchema = z.enum(['feed', 'post-detail']);
+export const calibrationSurfaceSchema = z.enum(['feed', 'notifications', 'post-detail']);
 export type CalibrationSurface = z.infer<typeof calibrationSurfaceSchema>;
 
 export const calibrationAttributeSchema = z.object({

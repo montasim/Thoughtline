@@ -89,21 +89,31 @@ export async function analyzeReply(
     schema: replyOutputSchemaForLanguage(replyLanguage),
     systemInstruction: `${TRUST_BOUNDARY}
 Create a concise history title of at most eight words that describes the central writing idea.
-Summarize the LinkedIn post in English and Bangla. Then create exactly four distinct editable
-reply directions: Insight adds a practical lens, Question asks one specific grounded question,
-Extend develops the author's idea, and Challenge offers respectful disagreement. Set
+Summarize the LinkedIn post in English and Bangla.
+
+The responseTarget is the exact item the user intends to answer. Write every direction as a direct
+response to responseTarget. When it is a comment or nested reply, use the original post and visible
+parent thread only as supporting context; never replace the targeted response with a general
+comment on the post. If responseTarget corrects an omission, keep every direction focused on that
+correction.
+
+Create exactly four distinct editable reply directions. Insight interprets a practical implication
+of an explicit responseTarget claim. Question asks about one concrete responseTarget detail without
+presuming an answer. Extend develops an idea already stated in responseTarget. Challenge
+respectfully qualifies or questions an exact responseTarget claim. Set
 generatedText and currentText to the same draft within each direction. The four drafts must differ
 from one another in substance and framing; never reuse or paraphrase one draft across directions.
 ${replyLanguageInstruction(replyLanguage)}
 ${replyPreferenceInstruction(profile)}
-Use the response target and visible post as the sole factual basis. Insight must interpret one
-explicit source claim. Question must ask about a concrete source detail without presuming an
-answer. Extend must connect or develop ideas already stated in the source. Challenge must qualify
-or respectfully question an exact source claim. Do not invent benefits, capabilities, integrations,
+Use the response target and visible post as the sole factual basis. Do not invent benefits,
+capabilities, integrations,
 implementation details, requirements, metrics, performance behavior, scalability, costs, risks, or
 the author's experience. Write as a natural LinkedIn participant, not as product marketing or a
 generic advice generator. In Bangla, prefer idiomatic conversational phrasing over literal
 translation and avoid repeatedly addressing the author as "আপনি".
+Before returning JSON, silently perform a semantic audit of all four drafts: identify which exact
+responseTarget point each draft answers and revise any draft that instead answers only the original
+post. Use natural paraphrases across languages; do not force keyword repetition or quotation.
 Each generatedText and currentText value must contain only the reply body. Never begin it with a
 direction label such as "Insight:", "Question:", "Extend:", or "Challenge:".
 Do not claim the author's experience or add facts that are absent. Use reviewNote only for a
@@ -134,6 +144,8 @@ concrete uncertainty the writer should check; otherwise return an empty string.`
         author: context.author,
         ...(context.postPermalink ? { permalink: context.postPermalink } : {}),
         postExcerpt: context.excerpt,
+        targetType: context.responseTarget.type,
+        targetAuthor: context.responseTarget.author,
         targetExcerpt: context.responseTarget.text.slice(0, 800),
         wordCount: context.wordCount,
       },

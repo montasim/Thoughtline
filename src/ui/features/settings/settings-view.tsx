@@ -793,8 +793,12 @@ export function SettingsView() {
                       </span>
                     </div>
                     <p className="mt-0.5 text-[9.5px] text-muted">
-                      {recipe.surface === 'post-detail' ? 'Post detail' : 'Feed'} ·{' '}
-                      {String(recipe.validationCount)} examples ·{' '}
+                      {recipe.surface === 'post-detail'
+                        ? 'Post detail'
+                        : recipe.surface === 'notifications'
+                          ? 'Notifications'
+                          : 'Feed'}{' '}
+                      · {String(recipe.validationCount)} examples ·{' '}
                       {new Date(recipe.updatedAt).toLocaleDateString()}
                     </p>
                   </div>

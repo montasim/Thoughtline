@@ -108,7 +108,7 @@ export type DiscussionItem = z.infer<typeof discussionItemSchema>;
 export const postContextSchema = z.object({
   schemaVersion: z.literal(1),
   extractionVersion: boundedText(40),
-  surface: z.enum(['feed', 'post-detail']),
+  surface: z.enum(['feed', 'notifications', 'post-detail']),
   author: boundedText(160),
   postText: boundedText(12_000),
   postPermalink: linkedInUrlSchema.optional(),
@@ -299,6 +299,8 @@ export const replyHistorySchema = historyBaseSchema.extend({
     author: boundedText(160),
     permalink: linkedInUrlSchema.optional(),
     postExcerpt: boundedText(320),
+    targetType: postTargetTypeSchema.optional(),
+    targetAuthor: boundedText(160).optional(),
     targetExcerpt: boundedText(800),
     wordCount: z.number().int().positive().max(20_000).optional(),
   }),
@@ -406,8 +408,11 @@ export const analysisStateSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('error'),
     requestId: uuidSchema.optional(),
+    tabId: z.number().int().positive().optional(),
+    frameId: z.number().int().nonnegative().optional(),
     code: boundedText(80),
     message: boundedText(800),
+    recoveryKind: z.enum(['post', 'comment']).optional(),
   }),
 ]);
 export type AnalysisState = z.infer<typeof analysisStateSchema>;

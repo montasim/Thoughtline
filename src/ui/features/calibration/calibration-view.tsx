@@ -32,30 +32,42 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
   const started = useRef<string | null>(null);
 
   const request = session?.calibration.status === 'pending' ? session.calibration : null;
+  const requestId = request?.requestId;
+  const requestTabId = request?.tabId;
+  const requestFrameId = request?.frameId;
+  const requestKind = request?.kind;
+  const requestMode = request?.mode;
+  const appLoaded = app !== null;
+  const aiSetupReady = app ? app.settings.consent.accepted && isProviderReady(app.settings) : false;
 
   useEffect(() => {
-    if (!app || !request || started.current === request.requestId) return;
-    started.current = request.requestId;
+    if (
+      !appLoaded ||
+      !requestId ||
+      requestTabId === undefined ||
+      requestFrameId === undefined ||
+      !requestKind ||
+      !requestMode ||
+      started.current === requestId
+    ) {
+      return;
+    }
+    started.current = requestId;
     let active = true;
     void (async () => {
       try {
-        if (
-          request.mode === 'ai' &&
-          (!app.settings.consent.accepted ||
-            !isProviderReady(app.settings) ||
-            !(await hasProviderPermissions()))
-        ) {
+        if (requestMode === 'ai' && (!aiSetupReady || !(await hasProviderPermissions()))) {
           if (active) setPhase('setup');
           return;
         }
         const response: RuntimeResponse = await chrome.tabs.sendMessage(
-          request.tabId,
+          requestTabId,
           {
             type: 'content:capture-calibration',
-            requestId: request.requestId,
-            kind: request.kind,
+            requestId,
+            kind: requestKind,
           },
-          { frameId: request.frameId },
+          { frameId: requestFrameId },
         );
         if (!response.ok || !('capture' in response)) {
           throw new AppError(
@@ -66,7 +78,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
         const parsed = calibrationCaptureSchema.parse(response.capture);
         if (!active) return;
         setCapture(parsed);
-        if (request.mode === 'local') {
+        if (requestMode === 'local') {
           setCandidate(parsed.localCandidate);
           setPhase('preview');
         } else {
@@ -83,21 +95,21 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
     return () => {
       active = false;
     };
-  }, [app, request]);
+  }, [aiSetupReady, appLoaded, requestFrameId, requestId, requestKind, requestMode, requestTabId]);
 
   useEffect(
     () => () => {
-      if (request) {
+      if (requestId && requestTabId !== undefined && requestFrameId !== undefined) {
         void chrome.tabs
           .sendMessage(
-            request.tabId,
+            requestTabId,
             { type: 'content:clear-calibration' },
-            { frameId: request.frameId },
+            { frameId: requestFrameId },
           )
           .catch(() => undefined);
       }
     },
-    [request],
+    [requestFrameId, requestId, requestTabId],
   );
 
   if (!app || !session || !request) return null;
