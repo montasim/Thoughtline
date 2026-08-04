@@ -1,6 +1,18 @@
 {
   "name": "thoughtline",
   "version": "0.3.2",
+  "description": "User-controlled Chrome side-panel extension for understanding LinkedIn conversations and shaping replies and posts in your own voice.",
+  "keywords": [
+    "chrome-extension",
+    "linkedin",
+    "writing-assistant",
+    "ai-assistant",
+    "productivity",
+    "react",
+    "typescript",
+    "tailwindcss",
+    "zod"
+  ],
   "private": true,
   "type": "module",
   "license": "MIT",
