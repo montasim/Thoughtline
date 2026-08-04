@@ -7,6 +7,8 @@
 
 Thoughtline is a user-controlled Chrome side-panel extension for understanding a selected LinkedIn conversation and shaping writing in your own voice. It creates four reply directions, refines pasted or selected content, researches post ideas, and keeps editable work history. It never publishes for you.
 
+**[Download the latest release](https://github.com/montasim/Thoughtline/releases/latest) · [Report an issue](https://github.com/montasim/Thoughtline/issues) · [Read the privacy policy](PRIVACY.md)**
+
 > Status: functional development release for Chrome 120+. Scheduling is a visual preview only; it does not run jobs or send email until the separate scheduling API is integrated.
 
 ## Latest release: v0.3.2
@@ -23,6 +25,10 @@ Thoughtline is a user-controlled Chrome side-panel extension for understanding a
 | ![Reply view](docs/screenshots/reply.png) | ![Idea view](docs/screenshots/ideas.png) | ![Settings view](docs/screenshots/settings.png) |
 
 The screenshots above are captured from the production extension at the canonical 400 × 820 side-panel viewport and are also enforced as visual-regression baselines.
+
+## Why Thoughtline?
+
+Writing tools often replace the writer's judgment, detach a reply from its actual conversation, or hide what context was sent to an AI provider. Thoughtline keeps the person in control: the user selects one visible LinkedIn boundary, reviews every generated direction, edits the result, and publishes manually. Research results retain their source links, learned preferences remain inspectable, and provider/data boundaries are documented instead of implied.
 
 ## What works
 
@@ -172,6 +178,18 @@ The feature code depends on typed ports rather than provider-specific response s
 
 The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md). Architectural decisions live in [docs/adr](docs/adr), and [prototypes/reference.json](prototypes/reference.json) always identifies the approved immutable visual contract.
 
+## Technology
+
+| Area         | Technology                                                       |
+| ------------ | ---------------------------------------------------------------- |
+| Extension    | WXT, Chrome Manifest V3, TypeScript                              |
+| Interface    | React 19, Tailwind CSS 4, Radix primitives                       |
+| Validation   | Zod at provider, storage, archive, and content boundaries        |
+| AI providers | Gemini with one eligible Groq fallback                           |
+| Local data   | Chrome local and session storage, encrypted provider credentials |
+| Documents    | PDF.js for local LinkedIn profile-export text extraction         |
+| Quality      | Vitest, Testing Library, Playwright, Axe, visual regression      |
+
 ## Release
 
 Update the package and extension version, refresh `.github/RELEASE_NOTES.md`, and push a matching `v*` tag:
@@ -184,15 +202,47 @@ git push origin "$VERSION"
 
 The release workflow installs dependencies, runs unit/static/build checks and the real-browser UI suite, creates the WXT Chrome ZIP, generates SHA-256 checksums, and publishes both with the prepared release notes.
 
-## Support
+## Project status and limitations
+
+- Thoughtline is distributed as a development release, not through the Chrome Web Store.
+- It analyzes only the rendered content inside the user's explicit target; collapsed, paginated, and unloaded discussion is unavailable.
+- AI output can be incomplete or incorrect and must be reviewed before use.
+- Both valid provider keys are currently required even though Groq is used only for eligible fallback.
+- Idea availability depends on enabled public sources and the permissions granted to them.
+- Scheduling controls are a non-operational preview and do not send posts or email.
+- Credentials are encrypted at rest, but a compromised browser or operating system remains outside that protection boundary.
+
+## Documentation
+
+- [Product and domain context](CONTEXT.md)
+- [Privacy policy](PRIVACY.md)
+- [Security policy](SECURITY.md)
+- [Test plan](tests/TEST-PLAN.md)
+- [Architecture decisions](docs/adr)
+- [Prototype history](prototypes/README.md)
+- [Contribution guide](CONTRIBUTING.md)
+
+## Contributing
+
+Issues and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), run the documented quality gates, and include updated visual evidence when changing the side-panel interface. Security reports must follow [SECURITY.md](SECURITY.md), not a public issue.
+
+## Support and security
 
 Use [GitHub Issues](https://github.com/montasim/Thoughtline/issues) for reproducible bugs and feature requests. Report vulnerabilities privately through the process in [SECURITY.md](SECURITY.md).
 
 Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The project records important technical and product decisions in [docs/adr](docs/adr).
 
+## Funding
+
 If this project has been useful, you can optionally support its continued maintenance:
 
 [![Support me on SupportKori](https://img.shields.io/badge/Support%20me-SupportKori-FFDD00?style=flat-square)](https://www.supportkori.com/montasim)
+
+Bug reports, privacy feedback, documentation improvements, and code contributions are equally valuable ways to help.
+
+## Author
+
+Built and maintained by [Montasim](https://github.com/montasim).
 
 ## License
 
