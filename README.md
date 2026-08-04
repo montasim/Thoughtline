@@ -1,8 +1,9 @@
-[![Support me on SupportKori](https://img.shields.io/badge/Support%20me-SupportKori-FFDD00?style=flat-square)](https://www.supportkori.com/montasim)
-
 # Thoughtline
 
-
+[![CI](https://github.com/montasim/Thoughtline/actions/workflows/ci.yml/badge.svg)](https://github.com/montasim/Thoughtline/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/montasim/Thoughtline)](https://github.com/montasim/Thoughtline/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Support on SupportKori](https://img.shields.io/badge/Support-SupportKori-FFDD00)](https://www.supportkori.com/montasim)
 
 Thoughtline is a user-controlled Chrome side-panel extension for understanding a selected LinkedIn conversation and shaping writing in your own voice. It creates four reply directions, refines pasted or selected content, researches post ideas, and keeps editable work history. It never publishes for you.
 
@@ -185,7 +186,11 @@ The release workflow installs dependencies, runs unit/static/build checks and th
 
 ## Support
 
-If this project has been useful, you can support its continued maintenance:
+Use [GitHub Issues](https://github.com/montasim/Thoughtline/issues) for reproducible bugs and feature requests. Report vulnerabilities privately through the process in [SECURITY.md](SECURITY.md).
+
+Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The project records important technical and product decisions in [docs/adr](docs/adr).
+
+If this project has been useful, you can optionally support its continued maintenance:
 
 [![Support me on SupportKori](https://img.shields.io/badge/Support%20me-SupportKori-FFDD00?style=flat-square)](https://www.supportkori.com/montasim)
 
