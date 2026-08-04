@@ -11,7 +11,7 @@ Thoughtline is a user-controlled Chrome side-panel extension for understanding a
 
 > Status: functional development release for Chrome 120+. Scheduling is a visual preview only; it does not run jobs or send email until the separate scheduling API is integrated.
 
-## Latest release: v0.3.2
+## Current release highlights
 
 - Added exact LinkedIn comment and nested-reply targeting across feed, notification, and post-detail layouts.
 - Added visible target author and excerpt confirmation before copying a generated reply.
@@ -131,6 +131,8 @@ See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) for the complete bou
 ### Start and build
 
 ```bash
+git clone https://github.com/montasim/Thoughtline.git
+cd Thoughtline
 pnpm install
 pnpm dev
 pnpm build
@@ -195,7 +197,7 @@ The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md)
 Update the package and extension version, refresh `.github/RELEASE_NOTES.md`, and push a matching `v*` tag:
 
 ```bash
-VERSION=v0.3.2
+VERSION=v$(node -p "require('./package.json').version")
 git tag "$VERSION"
 git push origin "$VERSION"
 ```
@@ -226,11 +228,11 @@ The release workflow installs dependencies, runs unit/static/build checks and th
 
 Issues and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), run the documented quality gates, and include updated visual evidence when changing the side-panel interface. Security reports must follow [SECURITY.md](SECURITY.md), not a public issue.
 
+The repository does not currently include a separate code of conduct. Keep participation respectful, scoped to the project, and protective of user and source privacy.
+
 ## Support and security
 
 Use [GitHub Issues](https://github.com/montasim/Thoughtline/issues) for reproducible bugs and feature requests. Report vulnerabilities privately through the process in [SECURITY.md](SECURITY.md).
-
-Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The project records important technical and product decisions in [docs/adr](docs/adr).
 
 ## Funding
 
