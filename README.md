@@ -180,11 +180,10 @@ Husky runs `lint-staged` before commits after the project is installed inside a 
 
 ```text
 apps/extension/               WXT extension source, tests, and build configuration
-apps/web/                     TanStack Start landing page and Netlify integration
+apps/web/                     TanStack Start landing page and Netlify configuration
 prototypes/extention/         Immutable extension prototype history
 prototypes/web/               Static Tailwind CDN marketing prototypes
 docs/adr/                     Architectural decision records
-netlify.toml                  Monorepo-aware web deployment configuration
 ```
 
 The feature code depends on typed ports rather than provider-specific response shapes. Gemini and Groq share the same validated request contract, so another provider can be introduced by implementing `DraftingProvider`. Source research follows the same adapter boundary. Shared UI primitives use Tailwind CSS v4 and Radix; there is no component-level vanilla CSS.
