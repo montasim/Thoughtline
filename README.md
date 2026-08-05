@@ -128,19 +128,34 @@ See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) for the complete bou
 - pnpm 11.7+
 - Chrome/Chromium 120+
 
+### Run the landing page
+
+The production landing page is a TanStack Start app in [`apps/web`](apps/web), implemented with
+shadcn-owned components and Tailwind CSS. The approved static visual reference remains in
+[`prototypes/web/v1.html`](prototypes/web/v1.html).
+
+From the repository root, start the web app with:
+
+```bash
+pnpm dev:web
+```
+
+Then open `http://localhost:3000`.
+
 ### Start and build
 
 ```bash
 git clone https://github.com/montasim/Thoughtline.git
 cd Thoughtline
 pnpm install
-pnpm dev
+pnpm dev:extension
+pnpm dev:web
 pnpm build
 ```
 
-For live UI development, run `pnpm dev`. WXT opens a development browser with Thoughtline loaded and automatically refreshes the extension when source files change. If you prefer your existing Chrome profile, load `.output/chrome-mv3-dev` once while `pnpm dev` is running; keep the dev server running for subsequent updates.
+For live extension development, run `pnpm dev:extension`. WXT opens a development browser with Thoughtline loaded and automatically refreshes the extension when source files change. If you prefer your existing Chrome profile, load `apps/extension/.output/chrome-mv3-dev` once while the dev server is running.
 
-Load `.output/chrome-mv3` only for a production-build smoke test. Changes in that directory require `pnpm build` followed by an extension reload, so it is not the live-development target.
+Load `apps/extension/.output/chrome-mv3` only for a production-build smoke test. Changes in that directory require `pnpm build:extension` followed by an extension reload, so it is not the live-development target.
 
 ### Quality gates
 
@@ -157,28 +172,24 @@ pnpm check
 pnpm release:zip
 ```
 
-`pnpm test:e2e` launches the packed Manifest V3 extension in Chromium, checks responsive navigation at 400px and 320px, runs Axe against all five views, and compares production UI screenshots. Unit tests cover extraction boundaries, untrusted envelopes, encrypted credentials, provider fallback, storage migration/recovery/retention, data archives, and feedback behavior. See [tests/TEST-PLAN.md](tests/TEST-PLAN.md) for the approved-prototype contract, real-writer journey matrix, and AI quality gates.
+`pnpm test:e2e` launches the packed Manifest V3 extension in Chromium, checks responsive navigation at 400px and 320px, runs Axe against all five views, and compares production UI screenshots. Unit tests cover extraction boundaries, untrusted envelopes, encrypted credentials, provider fallback, storage migration/recovery/retention, data archives, and feedback behavior. See [apps/extension/tests/TEST-PLAN.md](apps/extension/tests/TEST-PLAN.md) for the approved-prototype contract, real-writer journey matrix, and AI quality gates.
 
 Husky runs `lint-staged` before commits after the project is installed inside a Git checkout. CI repeats the full static, unit, production-build, browser, accessibility, and visual checks.
 
 ## Architecture
 
 ```text
-entrypoints/                  WXT background, LinkedIn content, onboarding, side panel
-src/domain/                  Zod schemas, invariants, and domain types
-src/application/             Workflows, ports, feedback, archive, provider orchestration
-src/infrastructure/          Chrome storage, credential vault, providers, source adapters
-src/content/                 Passive LinkedIn DOM extraction
-src/ui/                      React features, hooks, local shadcn-style Radix primitives
-tests/unit/                  Boundary and behavior tests
-tests/e2e/                   Packed-extension visual, responsive, and accessibility tests
-prototypes/                  Immutable, numbered prototype history
-docs/adr/                    Architectural decision records
+apps/extension/               WXT extension source, tests, and build configuration
+apps/web/                     TanStack Start landing page and Netlify integration
+prototypes/extention/         Immutable extension prototype history
+prototypes/web/               Static Tailwind CDN marketing prototypes
+docs/adr/                     Architectural decision records
+netlify.toml                  Monorepo-aware web deployment configuration
 ```
 
 The feature code depends on typed ports rather than provider-specific response shapes. Gemini and Groq share the same validated request contract, so another provider can be introduced by implementing `DraftingProvider`. Source research follows the same adapter boundary. Shared UI primitives use Tailwind CSS v4 and Radix; there is no component-level vanilla CSS.
 
-The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md). Architectural decisions live in [docs/adr](docs/adr), and [prototypes/reference.json](prototypes/reference.json) always identifies the approved immutable visual contract.
+The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md). Architectural decisions live in [docs/adr](docs/adr), and [prototypes/extention/reference.json](prototypes/extention/reference.json) always identifies the approved immutable visual contract.
 
 ## Technology
 

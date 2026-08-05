@@ -6,3 +6,4 @@ test-results
 playwright-report
 pnpm-lock.yaml
 prototypes
+apps/web/src/routeTree.gen.ts

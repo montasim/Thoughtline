@@ -1,10 +1,19 @@
 # Thoughtline UI prototypes
 
-Prototype files are immutable visual snapshots. Never edit an approved version in place. Any future UI change creates the next sequential `simplified-ui-vN.html` file and adds a changelog entry here.
+Prototype files are immutable visual snapshots, organized by surface:
 
-`reference.json` is the machine-readable approval pointer used by automated UI tests. When a new prototype is approved, add the immutable HTML file, update this changelog, and move `reference.json` to that version in the same change. Tests fail if a newer version exists without an updated pointer.
+- `extention/` contains the existing Chrome extension and Android exploration history.
+- `web/` contains the landing-page prototype history.
 
-## Versions
+Never edit an approved version in place. Any future UI change creates the next sequential file in
+the relevant folder and adds a changelog entry here.
+
+`extention/reference.json` is the machine-readable approval pointer used by extension UI tests. When
+a new extension prototype is approved, add the immutable HTML file, update this changelog, and move
+the reference to that version in the same change. Tests fail if a newer extension version exists
+without an updated pointer.
+
+## Extension versions
 
 ### Original baseline
 
@@ -88,35 +97,44 @@ local history, writing-profile controls, data archives, reviewable learning, and
 surfaces.
 
 The screen-by-screen v5 comparison is recorded in
-[`android-v1-parity.md`](android-v1-parity.md).
+[`extention/android-v1-parity.md`](extention/android-v1-parity.md).
 
 This exploration does not change `reference.json`, which continues to identify the approved Version
 6 Chrome extension UI contract.
+
+## Web versions
+
+### Version 1
+
+[`web/v1.html`](web/v1.html) is the first responsive marketing prototype. It uses vanilla HTML and
+JavaScript with Tailwind's browser CDN, reuses production extension screenshots, and links to the
+latest GitHub release.
 
 ## Direct preview links
 
 The prototype supports optional query parameters for visual review without changing product behavior:
 
-- `?scene=settings`
-- `?scene=history`
-- `?scene=reply&replyState=loading`
-- `?scene=ideas&ideaState=experience`
-- `?scene=settings&dialog=style-guide-dialog`
-- `?scene=calibration&calibrationState=evidence`
-- `?scene=calibration&calibrationState=preview`
-- `?scene=calibration&calibrationState=success`
-- `simplified-ui-v6.html?scene=refine&refineState=manual`
-- `simplified-ui-v6.html?scene=refine&refineState=menu`
-- `simplified-ui-v6.html?scene=refine&refineState=review`
-- `simplified-ui-v6.html?scene=refine&refineState=loading`
-- `simplified-ui-v6.html?scene=refine&refineState=success`
-- `simplified-ui-v6.html?scene=refine&refineState=setup`
-- `simplified-ui-v6.html?scene=refine&refineState=no-post`
-- `android-v1.html?screen=reply`
-- `android-v1.html?screen=generate`
-- `android-v1.html?screen=idea`
-- `android-v1.html?screen=history`
-- `android-v1.html?screen=settings`
-- `android-v1.html?screen=setup`
+- `extention/simplified-ui-v6.html?scene=settings`
+- `extention/simplified-ui-v6.html?scene=history`
+- `extention/simplified-ui-v6.html?scene=reply&replyState=loading`
+- `extention/simplified-ui-v6.html?scene=ideas&ideaState=experience`
+- `extention/simplified-ui-v6.html?scene=settings&dialog=style-guide-dialog`
+- `extention/simplified-ui-v6.html?scene=calibration&calibrationState=evidence`
+- `extention/simplified-ui-v6.html?scene=calibration&calibrationState=preview`
+- `extention/simplified-ui-v6.html?scene=calibration&calibrationState=success`
+- `extention/simplified-ui-v6.html?scene=refine&refineState=manual`
+- `extention/simplified-ui-v6.html?scene=refine&refineState=menu`
+- `extention/simplified-ui-v6.html?scene=refine&refineState=review`
+- `extention/simplified-ui-v6.html?scene=refine&refineState=loading`
+- `extention/simplified-ui-v6.html?scene=refine&refineState=success`
+- `extention/simplified-ui-v6.html?scene=refine&refineState=setup`
+- `extention/simplified-ui-v6.html?scene=refine&refineState=no-post`
+- `extention/android-v1.html?screen=reply`
+- `extention/android-v1.html?screen=generate`
+- `extention/android-v1.html?screen=idea`
+- `extention/android-v1.html?screen=history`
+- `extention/android-v1.html?screen=settings`
+- `extention/android-v1.html?screen=setup`
+- `web/v1.html`
 
 The prototype's visible screen controls remain the primary way to move through states.

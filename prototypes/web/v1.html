@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Thoughtline is a user-controlled Chrome extension for understanding LinkedIn conversations and shaping replies and posts in your own voice."
+    />
+    <meta name="theme-color" content="#eef3f8" />
+    <title>Thoughtline — Find the thought. Shape the words.</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-canvas: #eef3f8;
+        --color-paper: #fbfcfe;
+        --color-ink: #1d3045;
+        --color-muted: #5b6e82;
+        --color-line: #cad6e2;
+        --color-blue: #365f91;
+        --color-blue-deep: #294b72;
+        --color-blue-soft: #dce7f1;
+        --color-teal: #397773;
+        --color-teal-soft: #e3f1ee;
+        --font-display: Charter, 'Bitstream Charter', Georgia, serif;
+        --font-body: 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+        --font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, monospace;
+        --shadow-soft: 0 24px 80px rgb(32 50 71 / 0.14);
+      }
+
+      @layer base {
+        * {
+          @apply border-line;
+        }
+
+        body {
+          @apply bg-canvas font-body text-ink antialiased;
+        }
+
+        ::selection {
+          @apply bg-blue text-white;
+        }
+
+        button,
+        a {
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        :focus-visible {
+          @apply outline-2 outline-offset-4 outline-teal;
+        }
+      }
+
+      @layer components {
+        .page-shell {
+          @apply mx-auto w-full max-w-[1320px] px-5 sm:px-8 lg:px-12;
+        }
+
+        .eyebrow {
+          @apply font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-blue;
+        }
+
+        .primary-action {
+          @apply inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-xl bg-blue-deep px-6 text-sm font-semibold text-white shadow-[0_10px_30px_rgb(41_75_114/0.2)] transition duration-200 hover:-translate-y-0.5 hover:bg-blue active:translate-y-px active:scale-[0.98];
+        }
+
+        .secondary-action {
+          @apply inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-xl border border-line bg-paper px-6 text-sm font-semibold text-blue-deep transition duration-200 hover:-translate-y-0.5 hover:border-blue/40 hover:bg-white active:translate-y-px active:scale-[0.98];
+        }
+
+        .reveal {
+          @apply translate-y-4 opacity-0 transition duration-700 ease-out;
+        }
+
+        .reveal.is-visible {
+          @apply translate-y-0 opacity-100;
+        }
+      }
+
+      @keyframes line-draw {
+        from {
+          stroke-dashoffset: 1000;
+        }
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+
+      .thoughtline-path {
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+        animation: line-draw 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.35s both;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+
+        .reveal {
+          transform: none;
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="min-w-[320px] overflow-x-hidden">
+    <header
+      class="fixed inset-x-0 top-0 z-50 border-b border-white/50 bg-canvas/85 backdrop-blur-xl"
+    >
+      <nav
+        class="page-shell flex h-[72px] items-center justify-between"
+        aria-label="Primary navigation"
+      >
+        <a href="#top" class="flex items-center gap-3" aria-label="Thoughtline home">
+          <img
+            src="../../assets/thoughtline-mark.svg"
+            alt=""
+            class="size-9 rounded-[10px] shadow-sm"
+          />
+          <span class="font-display text-xl font-bold tracking-[-0.02em]">Thoughtline</span>
+        </a>
+
+        <div class="hidden items-center gap-8 md:flex">
+          <a href="#how-it-works" class="text-sm font-medium text-muted transition hover:text-ink"
+            >How it works</a
+          >
+          <a href="#features" class="text-sm font-medium text-muted transition hover:text-ink"
+            >Features</a
+          >
+          <a href="#privacy" class="text-sm font-medium text-muted transition hover:text-ink"
+            >Privacy</a
+          >
+        </div>
+
+        <a
+          href="https://github.com/montasim/Thoughtline/releases/latest"
+          target="_blank"
+          rel="noreferrer"
+          class="primary-action hidden min-h-10 px-4 md:inline-flex"
+          >Get the extension <span aria-hidden="true" class="ml-2">↗</span></a
+        >
+
+        <button
+          id="menu-button"
+          type="button"
+          class="grid size-11 place-items-center rounded-xl border border-line bg-paper md:hidden"
+          aria-expanded="false"
+          aria-controls="mobile-menu"
+          aria-label="Open navigation"
+        >
+          <span class="space-y-1.5" aria-hidden="true">
+            <span class="block h-0.5 w-5 bg-ink"></span>
+            <span class="block h-0.5 w-5 bg-ink"></span>
+          </span>
+        </button>
+      </nav>
+
+      <div id="mobile-menu" class="hidden border-t bg-paper md:hidden">
+        <div class="page-shell flex flex-col gap-1 py-4">
+          <a href="#how-it-works" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-canvas"
+            >How it works</a
+          >
+          <a href="#features" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-canvas"
+            >Features</a
+          >
+          <a href="#privacy" class="rounded-lg px-3 py-3 text-sm font-medium hover:bg-canvas"
+            >Privacy</a
+          >
+          <a
+            href="https://github.com/montasim/Thoughtline/releases/latest"
+            target="_blank"
+            rel="noreferrer"
+            class="primary-action mt-2"
+            >Get the extension <span aria-hidden="true" class="ml-2">↗</span></a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="top">
+      <section
+        class="page-shell grid min-h-[100dvh] items-center gap-12 pb-16 pt-28 lg:grid-cols-[0.88fr_1.12fr] lg:gap-10 lg:pb-20 lg:pt-24"
+      >
+        <div class="relative z-10 max-w-[620px] lg:pr-4">
+          <div class="eyebrow mb-6 flex items-center gap-3">
+            <span class="h-px w-8 bg-blue"></span>
+            Chrome side-panel extension
+          </div>
+          <h1
+            class="font-display text-[clamp(3.3rem,7.2vw,6.7rem)] font-bold leading-[0.9] tracking-[-0.055em] text-ink"
+          >
+            Find the thought.<br />
+            <span class="font-normal italic text-blue">Shape the words.</span>
+          </h1>
+          <p class="mt-7 max-w-[520px] text-base leading-7 text-muted sm:text-lg">
+            Understand the conversation, explore four reply directions, and write in your own
+            voice—without giving up control.
+          </p>
+          <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+            <a
+              href="https://github.com/montasim/Thoughtline/releases/latest"
+              target="_blank"
+              rel="noreferrer"
+              class="primary-action"
+              >Get for Chrome <span aria-hidden="true" class="ml-2">↗</span></a
+            >
+            <a href="#how-it-works" class="secondary-action"
+              >See how it works <span aria-hidden="true" class="ml-2">↓</span></a
+            >
+          </div>
+          <p class="mt-5 font-mono text-[11px] uppercase tracking-[0.08em] text-muted">
+            Chrome 120+ · Free and open source · Manual publishing only
+          </p>
+        </div>
+
+        <div class="relative mx-auto w-full max-w-[680px] lg:translate-x-4">
+          <div
+            class="absolute -left-8 top-[16%] hidden w-44 rotate-[-7deg] rounded-xl border border-line bg-paper px-4 py-3 shadow-soft xl:block"
+          >
+            <p class="font-mono text-[9px] uppercase tracking-[0.14em] text-teal">You chose this</p>
+            <p class="mt-2 font-display text-sm font-bold leading-snug">
+              Reply to Ayesha’s point about thoughtful leadership
+            </p>
+          </div>
+
+          <div
+            class="relative ml-auto w-[87%] overflow-hidden rounded-[28px] border border-line bg-[#dce4ec] p-2 shadow-soft sm:w-[80%] sm:p-3"
+          >
+            <div class="flex h-9 items-center gap-2 rounded-t-[20px] bg-[#c9d4df] px-4">
+              <span class="size-2.5 rounded-full bg-[#8799aa]"></span>
+              <span class="size-2.5 rounded-full bg-[#8799aa]/70"></span>
+              <span class="size-2.5 rounded-full bg-[#8799aa]/40"></span>
+              <div class="mx-auto mr-[20%] h-5 w-[48%] rounded-md bg-white/65"></div>
+            </div>
+            <div
+              class="relative min-h-[520px] overflow-hidden rounded-b-[20px] bg-[#f7f9fb] sm:min-h-[600px]"
+            >
+              <div
+                class="absolute inset-y-0 left-0 w-[45%] bg-[linear-gradient(180deg,#e8edf2_0%,#f5f7f9_100%)] p-5 sm:p-8"
+              >
+                <div class="h-3 w-16 rounded bg-[#aebbc8]/60"></div>
+                <div class="mt-7 h-4 w-[88%] rounded bg-[#8699aa]/30"></div>
+                <div class="mt-3 h-4 w-[72%] rounded bg-[#8699aa]/25"></div>
+                <div class="mt-8 h-24 rounded-xl border border-[#b9c6d2]/50 bg-white/60"></div>
+                <div class="mt-4 h-24 rounded-xl border border-[#b9c6d2]/50 bg-white/60"></div>
+              </div>
+              <div
+                class="absolute inset-y-0 right-0 w-[55%] overflow-hidden border-l border-line bg-canvas"
+              >
+                <img
+                  src="../../docs/screenshots/reply.png"
+                  alt="Thoughtline reply workspace showing a selected LinkedIn conversation and editable reply directions"
+                  class="h-full w-full object-cover object-top"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="absolute -bottom-5 left-0 w-[52%] rounded-2xl border border-teal/25 bg-teal-soft p-4 shadow-[0_18px_50px_rgb(32_50_71/0.12)] sm:-bottom-7 sm:p-5"
+          >
+            <div
+              class="flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.13em] text-teal sm:text-[10px]"
+            >
+              <span class="size-2 rounded-full bg-teal"></span>
+              Still your call
+            </div>
+            <p class="mt-2 font-display text-sm font-bold leading-snug sm:text-base">
+              Edit, copy, and publish only when it sounds like you.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="border-y border-blue-deep bg-blue-deep py-5 text-white">
+        <div class="page-shell grid gap-4 sm:grid-cols-3 sm:divide-x sm:divide-white/20">
+          <p class="font-mono text-[10px] uppercase tracking-[0.14em] sm:pr-6">No auto-posting</p>
+          <p class="font-mono text-[10px] uppercase tracking-[0.14em] sm:px-6">No feed scanning</p>
+          <p class="font-mono text-[10px] uppercase tracking-[0.14em] sm:pl-6">No hidden content</p>
+        </div>
+      </section>
+
+      <section id="how-it-works" class="page-shell py-24 sm:py-32">
+        <div class="reveal grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:gap-20">
+          <div>
+            <p class="eyebrow">One conversation at a time</p>
+            <h2
+              class="mt-4 max-w-[430px] font-display text-4xl font-bold leading-[1.02] tracking-[-0.035em] sm:text-5xl"
+            >
+              A clear path from context to your words.
+            </h2>
+          </div>
+          <p class="max-w-[610px] self-end text-base leading-7 text-muted sm:text-lg">
+            Thoughtline starts only when you ask. It reads the visible conversation you selected,
+            gives you useful directions, then gets out of the way.
+          </p>
+        </div>
+
+        <div class="relative mt-20">
+          <svg
+            class="pointer-events-none absolute left-5 top-5 hidden h-[calc(100%-2.5rem)] w-[calc(100%-2.5rem)] lg:block"
+            viewBox="0 0 1000 250"
+            fill="none"
+            aria-hidden="true"
+            preserveAspectRatio="none"
+          >
+            <path
+              class="thoughtline-path"
+              d="M2 4 C140 4, 220 84, 359 84 S590 12, 716 12"
+              stroke="#397773"
+              stroke-width="2"
+              vector-effect="non-scaling-stroke"
+            />
+          </svg>
+
+          <ol class="relative grid gap-12 lg:grid-cols-3 lg:gap-10">
+            <li class="reveal lg:pt-0">
+              <div
+                class="mb-8 grid size-11 place-items-center rounded-full border-4 border-canvas bg-teal font-mono text-xs font-bold text-white shadow-[0_0_0_1px_#397773]"
+              >
+                1
+              </div>
+              <p class="eyebrow text-teal">Choose the context</p>
+              <h3 class="mt-3 font-display text-2xl font-bold tracking-[-0.02em]">
+                Right-click what matters.
+              </h3>
+              <p class="mt-3 max-w-[330px] leading-7 text-muted">
+                Select one visible post, comment, or reply. Thoughtline stays inside that boundary.
+              </p>
+            </li>
+            <li class="reveal lg:pt-20">
+              <div
+                class="mb-8 grid size-11 place-items-center rounded-full border-4 border-canvas bg-teal font-mono text-xs font-bold text-white shadow-[0_0_0_1px_#397773]"
+              >
+                2
+              </div>
+              <p class="eyebrow text-teal">Find your angle</p>
+              <h3 class="mt-3 font-display text-2xl font-bold tracking-[-0.02em]">
+                Explore four directions.
+              </h3>
+              <p class="mt-3 max-w-[330px] leading-7 text-muted">
+                Add insight, ask a question, extend the idea, or respectfully challenge it.
+              </p>
+            </li>
+            <li class="reveal lg:pt-2">
+              <div
+                class="mb-8 grid size-11 place-items-center rounded-full border-4 border-canvas bg-teal font-mono text-xs font-bold text-white shadow-[0_0_0_1px_#397773]"
+              >
+                3
+              </div>
+              <p class="eyebrow text-teal">Make it yours</p>
+              <h3 class="mt-3 font-display text-2xl font-bold tracking-[-0.02em]">
+                Edit, copy, publish.
+              </h3>
+              <p class="mt-3 max-w-[330px] leading-7 text-muted">
+                Refine every word in the side panel. Nothing is published until you do it yourself.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="features" class="border-y bg-paper">
+        <div class="page-shell py-24 sm:py-32">
+          <div class="reveal grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
+            <div class="relative mx-auto w-full max-w-[560px]">
+              <div
+                class="absolute -inset-4 -rotate-2 rounded-[28px] border border-blue/10 bg-blue-soft/50"
+              ></div>
+              <div
+                class="relative grid grid-cols-2 gap-3 overflow-hidden rounded-[24px] border bg-canvas p-3 shadow-soft"
+              >
+                <img
+                  src="../../docs/screenshots/ideas.png"
+                  alt="Thoughtline source-backed idea research view"
+                  class="w-full rounded-[14px] border object-cover object-top"
+                />
+                <img
+                  src="../../docs/screenshots/settings.png"
+                  alt="Thoughtline settings for writing language, tone, and profile"
+                  class="mt-14 w-full rounded-[14px] border object-cover object-top"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p class="eyebrow">More than replies</p>
+              <h2
+                class="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.035em] sm:text-5xl"
+              >
+                Build a writing practice, not a content machine.
+              </h2>
+              <div class="mt-10 divide-y border-y">
+                <div class="py-6">
+                  <h3 class="font-display text-xl font-bold">Refine rough writing</h3>
+                  <p class="mt-2 leading-7 text-muted">
+                    Paste a draft or reshape a selected post through your confirmed perspective and
+                    voice.
+                  </p>
+                </div>
+                <div class="py-6">
+                  <h3 class="font-display text-xl font-bold">Research source-backed ideas</h3>
+                  <p class="mt-2 leading-7 text-muted">
+                    Find promising ideas across public sources, with a link back to every original
+                    item.
+                  </p>
+                </div>
+                <div class="py-6">
+                  <h3 class="font-display text-xl font-bold">Keep useful work close</h3>
+                  <p class="mt-2 leading-7 text-muted">
+                    Search, edit, revise, and export local history without turning your work into
+                    telemetry.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-shell py-24 sm:py-32">
+        <div class="reveal grid gap-8 border-t pt-8 lg:grid-cols-[0.65fr_1.35fr] lg:gap-20">
+          <p class="eyebrow">Made for your voice</p>
+          <div>
+            <blockquote
+              class="max-w-[900px] font-display text-[clamp(2.2rem,5vw,4.6rem)] font-bold leading-[1.02] tracking-[-0.04em]"
+            >
+              “Useful AI should leave you sounding
+              <span class="font-normal italic text-blue">more like yourself,</span> not less.”
+            </blockquote>
+            <div class="mt-12 grid gap-8 sm:grid-cols-3">
+              <div class="border-l-2 border-teal pl-5">
+                <p class="font-display text-lg font-bold">Your language</p>
+                <p class="mt-2 text-sm leading-6 text-muted">
+                  English, Bangla, or naturally matched to the source.
+                </p>
+              </div>
+              <div class="border-l-2 border-teal pl-5">
+                <p class="font-display text-lg font-bold">Your guidance</p>
+                <p class="mt-2 text-sm leading-6 text-muted">
+                  Tone, topics, audience, examples, and an editable style guide.
+                </p>
+              </div>
+              <div class="border-l-2 border-teal pl-5">
+                <p class="font-display text-lg font-bold">Your approval</p>
+                <p class="mt-2 text-sm leading-6 text-muted">
+                  Every draft remains editable and every publish action remains yours.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="privacy" class="bg-[#13283d] text-white">
+        <div class="page-shell grid gap-14 py-24 sm:py-32 lg:grid-cols-[0.85fr_1.15fr] lg:gap-24">
+          <div class="reveal">
+            <p
+              class="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8dc6c0]"
+            >
+              Boundaries are a feature
+            </p>
+            <h2
+              class="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.035em] sm:text-5xl"
+            >
+              Private by design. Limited on purpose.
+            </h2>
+            <p class="mt-6 max-w-[500px] text-base leading-7 text-[#bdcad7]">
+              Thoughtline is intentionally not a bot. It analyzes only what you explicitly select
+              and keeps you in control of every outcome.
+            </p>
+            <a
+              href="../../PRIVACY.md"
+              class="mt-8 inline-flex text-sm font-semibold text-white underline decoration-[#8dc6c0] decoration-2 underline-offset-8 hover:text-[#dff5f2]"
+              >Read the privacy policy <span aria-hidden="true" class="ml-2">→</span></a
+            >
+          </div>
+
+          <dl class="reveal divide-y divide-white/15 border-y border-white/15">
+            <div class="grid gap-3 py-6 sm:grid-cols-[150px_1fr]">
+              <dt class="font-mono text-[10px] uppercase tracking-[0.13em] text-[#8dc6c0]">
+                LinkedIn access
+              </dt>
+              <dd class="leading-7 text-[#dce5ec]">
+                No scrolling, clicking, hidden-content expansion, or background feed scanning.
+              </dd>
+            </div>
+            <div class="grid gap-3 py-6 sm:grid-cols-[150px_1fr]">
+              <dt class="font-mono text-[10px] uppercase tracking-[0.13em] text-[#8dc6c0]">
+                Your content
+              </dt>
+              <dd class="leading-7 text-[#dce5ec]">
+                Only the bounded, visible context you choose is prepared for an AI request.
+              </dd>
+            </div>
+            <div class="grid gap-3 py-6 sm:grid-cols-[150px_1fr]">
+              <dt class="font-mono text-[10px] uppercase tracking-[0.13em] text-[#8dc6c0]">
+                Your history
+              </dt>
+              <dd class="leading-7 text-[#dce5ec]">
+                Work history stays in Chrome’s local extension storage and can be exported or
+                cleared.
+              </dd>
+            </div>
+            <div class="grid gap-3 py-6 sm:grid-cols-[150px_1fr]">
+              <dt class="font-mono text-[10px] uppercase tracking-[0.13em] text-[#8dc6c0]">
+                Publishing
+              </dt>
+              <dd class="leading-7 text-[#dce5ec]">
+                Thoughtline never posts, comments, or messages on your behalf.
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="page-shell py-24 sm:py-32">
+        <div class="reveal grid gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+          <div>
+            <p class="eyebrow">Install in a few minutes</p>
+            <h2
+              class="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.035em] sm:text-5xl"
+            >
+              Ready when your next conversation is.
+            </h2>
+            <p class="mt-6 max-w-[480px] leading-7 text-muted">
+              Thoughtline is currently distributed as a verified GitHub release for Chrome 120 and
+              later.
+            </p>
+            <a
+              href="https://github.com/montasim/Thoughtline/releases/latest"
+              target="_blank"
+              rel="noreferrer"
+              class="primary-action mt-8"
+              >Download latest release <span aria-hidden="true" class="ml-2">↗</span></a
+            >
+          </div>
+
+          <ol class="divide-y border-y">
+            <li class="grid grid-cols-[42px_1fr] gap-4 py-6">
+              <span class="font-mono text-xs font-semibold text-teal">01</span>
+              <div>
+                <h3 class="font-display text-xl font-bold">Download and extract</h3>
+                <p class="mt-2 leading-7 text-muted">
+                  Get the Chrome ZIP from the latest GitHub release and extract it to a stable
+                  folder.
+                </p>
+              </div>
+            </li>
+            <li class="grid grid-cols-[42px_1fr] gap-4 py-6">
+              <span class="font-mono text-xs font-semibold text-teal">02</span>
+              <div>
+                <h3 class="font-display text-xl font-bold">Load into Chrome</h3>
+                <p class="mt-2 leading-7 text-muted">
+                  Open <span class="font-mono text-sm">chrome://extensions</span>, enable Developer
+                  mode, and choose Load unpacked.
+                </p>
+              </div>
+            </li>
+            <li class="grid grid-cols-[42px_1fr] gap-4 py-6">
+              <span class="font-mono text-xs font-semibold text-teal">03</span>
+              <div>
+                <h3 class="font-display text-xl font-bold">Complete private setup</h3>
+                <p class="mt-2 leading-7 text-muted">
+                  Review permissions, connect your own AI provider keys, and describe the voice you
+                  want to keep.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="border-t bg-paper">
+        <div class="page-shell py-24 sm:py-28">
+          <div class="mx-auto max-w-[850px]">
+            <div class="reveal text-center">
+              <p class="eyebrow">Questions, answered</p>
+              <h2 class="mt-4 font-display text-4xl font-bold tracking-[-0.035em] sm:text-5xl">
+                Before you add it to Chrome.
+              </h2>
+            </div>
+            <div class="mt-14 divide-y border-y" id="faq-list">
+              <div class="faq-item">
+                <button
+                  class="faq-button flex w-full items-center justify-between gap-6 py-6 text-left"
+                  aria-expanded="false"
+                >
+                  <span class="font-display text-lg font-bold sm:text-xl"
+                    >Does Thoughtline publish for me?</span
+                  ><span class="faq-symbol font-mono text-xl text-blue" aria-hidden="true">+</span>
+                </button>
+                <div class="faq-answer grid grid-rows-[0fr] transition-all duration-300">
+                  <p class="overflow-hidden pr-10 leading-7 text-muted">
+                    No. Thoughtline prepares editable drafts. You choose what to copy, where to
+                    paste it, and whether to publish it.
+                  </p>
+                </div>
+              </div>
+              <div class="faq-item">
+                <button
+                  class="faq-button flex w-full items-center justify-between gap-6 py-6 text-left"
+                  aria-expanded="false"
+                >
+                  <span class="font-display text-lg font-bold sm:text-xl"
+                    >Does it scan my LinkedIn feed?</span
+                  ><span class="faq-symbol font-mono text-xl text-blue" aria-hidden="true">+</span>
+                </button>
+                <div class="faq-answer grid grid-rows-[0fr] transition-all duration-300">
+                  <p class="overflow-hidden pr-10 leading-7 text-muted">
+                    No. It reads only the already-visible post, comment, or reply you explicitly
+                    choose from Chrome’s context menu.
+                  </p>
+                </div>
+              </div>
+              <div class="faq-item">
+                <button
+                  class="faq-button flex w-full items-center justify-between gap-6 py-6 text-left"
+                  aria-expanded="false"
+                >
+                  <span class="font-display text-lg font-bold sm:text-xl"
+                    >What do I need to use it?</span
+                  ><span class="faq-symbol font-mono text-xl text-blue" aria-hidden="true">+</span>
+                </button>
+                <div class="faq-answer grid grid-rows-[0fr] transition-all duration-300">
+                  <p class="overflow-hidden pr-10 leading-7 text-muted">
+                    Chrome 120 or later, LinkedIn page permission, and your own valid Gemini and
+                    Groq API keys for primary generation and fallback.
+                  </p>
+                </div>
+              </div>
+              <div class="faq-item">
+                <button
+                  class="faq-button flex w-full items-center justify-between gap-6 py-6 text-left"
+                  aria-expanded="false"
+                >
+                  <span class="font-display text-lg font-bold sm:text-xl">Is it open source?</span
+                  ><span class="faq-symbol font-mono text-xl text-blue" aria-hidden="true">+</span>
+                </button>
+                <div class="faq-answer grid grid-rows-[0fr] transition-all duration-300">
+                  <p class="overflow-hidden pr-10 leading-7 text-muted">
+                    Yes. Thoughtline is available on GitHub under the MIT License, so you can
+                    inspect the code and product boundaries yourself.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-shell py-24 sm:py-32">
+        <div
+          class="reveal relative overflow-hidden rounded-[28px] bg-blue-deep px-6 py-16 text-white sm:px-12 sm:py-20 lg:px-20"
+        >
+          <div
+            class="absolute -right-20 -top-40 size-[420px] rounded-full border border-white/10"
+          ></div>
+          <div
+            class="absolute -right-8 -top-20 size-[260px] rounded-full border border-white/10"
+          ></div>
+          <div class="relative grid items-end gap-10 lg:grid-cols-[1fr_auto]">
+            <div>
+              <p
+                class="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a9d2ce]"
+              >
+                Your thought. Your voice. Your call.
+              </p>
+              <h2
+                class="mt-5 max-w-[750px] font-display text-4xl font-bold leading-[1] tracking-[-0.04em] sm:text-6xl"
+              >
+                Join the conversation without losing yourself in it.
+              </h2>
+            </div>
+            <a
+              href="https://github.com/montasim/Thoughtline/releases/latest"
+              target="_blank"
+              rel="noreferrer"
+              class="inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-xl bg-white px-6 text-sm font-bold text-blue-deep transition hover:-translate-y-0.5 hover:bg-[#eaf3f2] active:translate-y-px active:scale-[0.98]"
+              >Get for Chrome <span aria-hidden="true" class="ml-2">↗</span></a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t">
+      <div class="page-shell flex flex-col gap-8 py-10 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <a href="#top" class="flex items-center gap-3">
+            <img src="../../assets/thoughtline-mark.svg" alt="" class="size-9 rounded-[10px]" />
+            <span class="font-display text-xl font-bold">Thoughtline</span>
+          </a>
+          <p class="mt-3 text-sm text-muted">Find the thought. Shape the words.</p>
+        </div>
+        <div class="flex flex-wrap gap-x-6 gap-y-3 text-sm font-medium text-muted">
+          <a
+            href="https://github.com/montasim/Thoughtline"
+            target="_blank"
+            rel="noreferrer"
+            class="hover:text-ink"
+            >GitHub</a
+          >
+          <a href="../../PRIVACY.md" class="hover:text-ink">Privacy</a>
+          <a href="../../SECURITY.md" class="hover:text-ink">Security</a>
+          <a href="../../LICENSE" class="hover:text-ink">MIT License</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      const menuButton = document.querySelector('#menu-button');
+      const mobileMenu = document.querySelector('#mobile-menu');
+
+      menuButton.addEventListener('click', () => {
+        const expanded = menuButton.getAttribute('aria-expanded') === 'true';
+        menuButton.setAttribute('aria-expanded', String(!expanded));
+        menuButton.setAttribute('aria-label', expanded ? 'Open navigation' : 'Close navigation');
+        mobileMenu.classList.toggle('hidden');
+      });
+
+      mobileMenu.querySelectorAll('a').forEach((link) => {
+        link.addEventListener('click', () => {
+          mobileMenu.classList.add('hidden');
+          menuButton.setAttribute('aria-expanded', 'false');
+          menuButton.setAttribute('aria-label', 'Open navigation');
+        });
+      });
+
+      document.querySelectorAll('.faq-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          const isOpen = button.getAttribute('aria-expanded') === 'true';
+          const item = button.closest('.faq-item');
+          const answer = item.querySelector('.faq-answer');
+          const symbol = item.querySelector('.faq-symbol');
+
+          button.setAttribute('aria-expanded', String(!isOpen));
+          answer.classList.toggle('grid-rows-[1fr]', !isOpen);
+          answer.classList.toggle('pb-6', !isOpen);
+          symbol.textContent = isOpen ? '+' : '−';
+        });
+      });
+
+      const revealObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-visible');
+              revealObserver.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.12 },
+      );
+
+      document.querySelectorAll('.reveal').forEach((element) => revealObserver.observe(element));
+    </script>
+  </body>
+</html>
