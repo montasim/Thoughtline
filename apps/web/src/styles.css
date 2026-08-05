@@ -1,0 +1,173 @@
+@import 'charter-webfont/charter.css';
+@import '@fontsource/noto-sans/latin-400.css';
+@import '@fontsource/noto-sans/latin-500.css';
+@import '@fontsource/noto-sans/latin-600.css';
+@import '@fontsource/noto-sans/latin-700.css';
+@import '@fontsource/roboto-mono/latin-500.css';
+@import '@fontsource/roboto-mono/latin-600.css';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+:root {
+  --background: #eef3f8;
+  --foreground: #1d3045;
+  --card: #fbfcfe;
+  --card-foreground: #1d3045;
+  --popover: #fbfcfe;
+  --popover-foreground: #1d3045;
+  --primary: #294b72;
+  --primary-foreground: #ffffff;
+  --secondary: #dce7f1;
+  --secondary-foreground: #294b72;
+  --muted: #e3eaf1;
+  --muted-foreground: #5b6e82;
+  --accent: #e3f1ee;
+  --accent-foreground: #28615e;
+  --destructive: #963b3b;
+  --border: #cad6e2;
+  --input: #cad6e2;
+  --ring: #397773;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --font-sans: 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: Charter, 'Bitstream Charter', Georgia, serif;
+  --font-mono: 'Roboto Mono', ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: #365f91;
+  --color-brand-strong: #294b72;
+  --color-brand-soft: #dce7f1;
+  --color-proof: #397773;
+  --color-proof-soft: #e3f1ee;
+  --color-ink-deep: #13283d;
+  --shadow-soft: 0 24px 80px rgb(32 50 71 / 0.14);
+  --shadow-action: 0 10px 30px rgb(41 75 114 / 0.2);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background: var(--background);
+  }
+
+  body {
+    min-width: 320px;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: white;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+}
+
+@layer components {
+  .page-shell {
+    width: 100%;
+    max-width: 1320px;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  .eyebrow {
+    color: var(--primary);
+    font-family: 'Roboto Mono', ui-monospace, monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(1rem);
+    transition:
+      opacity 700ms ease-out,
+      transform 700ms ease-out;
+  }
+
+  .reveal[data-visible='true'] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes line-draw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.thoughtline-path {
+  color: var(--proof);
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: line-draw 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) 350ms both;
+}
+
+@media (min-width: 640px) {
+  .page-shell {
+    padding-inline: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-shell {
+    padding-inline: 3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

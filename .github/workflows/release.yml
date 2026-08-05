@@ -22,13 +22,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @thoughtline/extension exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - run: pnpm release:zip
       - name: Prepare unpacked Chrome archive
         run: |
           mkdir -p release
-          source_zip="$(find .output -maxdepth 1 -type f -name '*-chrome.zip' -print -quit)"
+          source_zip="$(find apps/extension/.output -maxdepth 1 -type f -name '*-chrome.zip' -print -quit)"
           test -n "${source_zip}"
           cp "${source_zip}" "release/${RELEASE_ZIP}"
       - name: Validate unpacked package layout

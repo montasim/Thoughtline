@@ -1,0 +1,12 @@
+[build]
+  command = "pnpm --filter @thoughtline/web build"
+  publish = "/apps/web/dist/client"
+
+[build.environment]
+  NODE_VERSION = "24"
+  PNPM_VERSION = "11.7.0"
+
+[dev]
+  command = "pnpm --filter @thoughtline/web dev"
+  targetPort = 3000
+  port = 8888
