@@ -1,12 +1,12 @@
-## What’s new in v0.3.2
+## What’s new in v0.4.0
 
-- Added reliable targeting for visible LinkedIn comments and nested replies across feed, notification, and post-detail pages.
-- Added explicit **Replying to [author]** confirmation with the selected target excerpt in the side panel.
-- Limited comment-target context to the original post and visible parent thread while excluding unrelated or hidden discussions.
-- Added guarded support for LinkedIn’s modern repeated comment wrappers without confusing duplicate wrappers for nested replies.
-- Added direct on-device calibration recovery when LinkedIn’s layout cannot be recognized, and fixed calibration requests expiring during routine panel refreshes.
-- Kept AI reply generation focused on the exact selected target through one provider operation, preventing duplicate review calls from cascading into fallback rate limits.
-- Added production content-script, extraction-to-generation, top-level comment, nested-reply, calibration-lifecycle, and browser-journey coverage.
+- Added portable JSON configuration backups in onboarding and Settings. Export the complete setup, optionally include provider credentials, and restore available settings into a fresh installation.
+- Added permission-safe configuration imports that apply only permissions declared by the extension and clearly confirm when the imported setup becomes active.
+- Added a Hashtags setting for choosing 0–10 generated hashtags and defining preferred custom hashtags that appear in generated and refined posts.
+- Added step-by-step setup guidance and direct provider links for Gemini, Groq, and Cloudflare Workers AI credentials.
+- Improved LinkedIn post and comment extraction across changing layouts, with stronger calibration recovery and regression coverage.
+- Refined configuration backup, import-success, copy-control, and narrow-screen onboarding layouts.
+- Updated the project README and landing page with the new backup, hashtag, privacy, and provider-setup workflows.
 
 ## Install in Chrome
 
