@@ -1,6 +1,6 @@
 {
   "name": "thoughtline-workspace",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Thoughtline Chrome extension and product website workspace.",

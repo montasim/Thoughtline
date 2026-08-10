@@ -156,7 +156,7 @@ export function OnboardingApp() {
           </nav>
 
           <main className="min-w-0">
-            <Card className="mb-4 flex flex-wrap items-center justify-between gap-3 p-3">
+            <Card className="mb-4 flex flex-col items-stretch gap-3 p-3 min-[431px]:flex-row min-[431px]:items-center min-[431px]:justify-between">
               <div className="min-w-0 flex-1">
                 <strong className="text-xs">Already configured Thoughtline?</strong>
                 <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
