@@ -263,4 +263,59 @@ describe('layout calibration modes', () => {
       ),
     ).toHaveLength(2);
   });
+
+  it('falls back to the validated on-device mapping when the AI selects an unsafe text node', async () => {
+    const app = visualAppData();
+    const session = visualSession('reply');
+    session.calibration = {
+      status: 'pending',
+      requestId,
+      tabId: 7,
+      frameId: 0,
+      kind: 'comment',
+      mode: 'ai',
+      requestedAt: timestamp,
+    };
+    mocks.useAppStore.mockReturnValue({ app, session, refresh: mocks.refresh });
+    mocks.proposeLayoutCalibration.mockResolvedValue({
+      value: { ...proposal, primaryTextNodeId: 'n1' },
+      provider: 'gemini',
+      usedFallback: false,
+    });
+    mocks.sendMessage.mockImplementation(
+      (_tabId: number, message: { type: string; proposal?: typeof proposal }) => {
+        if (message.type === 'content:capture-calibration') {
+          return Promise.resolve({ ok: true, capture });
+        }
+        if (
+          message.type === 'content:validate-calibration' &&
+          message.proposal?.primaryTextNodeId === 'n1'
+        ) {
+          return Promise.resolve({
+            ok: false,
+            code: 'unsupported-layout',
+            message: 'The proposed primary text includes profile or action controls.',
+          });
+        }
+        if (message.type === 'content:validate-calibration') {
+          return Promise.resolve({ ok: true, candidate });
+        }
+        return Promise.resolve({ ok: true });
+      },
+    );
+
+    render(<CalibrationView onOpenSettings={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Send and calibrate' }));
+
+    await screen.findByRole('button', { name: 'Confirm layout' });
+    expect(screen.getByText(/validated on-device mapping/i)).toBeVisible();
+    expect(mocks.sendMessage).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({
+        type: 'content:validate-calibration',
+        proposal,
+      }),
+      { frameId: 0 },
+    );
+  });
 });

@@ -51,7 +51,7 @@ Schema validation only proves that a provider returned the right JSON shape. The
 - source grounding and forbidden invented claims;
 - preservation of names, quantities, and measurable facts;
 - no assistant preamble, hashtags outside the feature policy, or unsupported emoji;
-- exactly 5–10 relevant hashtags in every manual and context-menu Refine result;
+- the configured 0–10 relevant generated hashtags plus every saved custom hashtag in manual Refine, context-menu Refine, and Idea posts;
 - response length and requested rewrite direction;
 - four distinct Reply directions;
 - one specific Question and a visibly qualifying Challenge; and

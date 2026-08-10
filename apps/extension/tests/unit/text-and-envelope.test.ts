@@ -5,7 +5,7 @@ import {
   replyEnvelope,
   rewriteEnvelope,
 } from '../../src/application/untrusted-envelope';
-import { countHashtags } from '../../src/application/workflows';
+import { applyHashtagPolicy, countHashtags } from '../../src/application/workflows';
 import {
   hasSourceResponseFraming,
   hasSharedPhrase,
@@ -60,6 +60,37 @@ describe('untrusted content boundary', () => {
         '#SoftwareEngineering #বাংলাদেশটেক #CareerGrowth #SoftwareEngineering #Leadership',
       ),
     ).toBe(4);
+  });
+
+  it('applies the configured generated count and appends custom hashtags', () => {
+    const output = applyHashtagPolicy(
+      'A practical post about validation. #Existing #TooMany',
+      'Validation makes software boundaries safer.',
+      defaultAppData.profile,
+      { generatedCount: 2, customHashtags: ['#Thoughtline', '#বাংলাদেশটেক'] },
+    );
+
+    expect(countHashtags(output)).toBe(4);
+    expect(output).toMatch(/#Thoughtline #বাংলাদেশটেক$/u);
+  });
+
+  it('removes generated hashtags at zero while retaining saved custom hashtags', () => {
+    const withoutHashtags = applyHashtagPolicy(
+      'A post body. #ProviderTag',
+      'Source text',
+      defaultAppData.profile,
+      { generatedCount: 0, customHashtags: [] },
+    );
+    const customOnly = applyHashtagPolicy(
+      'A post body. #ProviderTag',
+      'Source text',
+      defaultAppData.profile,
+      { generatedCount: 0, customHashtags: ['#AlwaysIncluded'] },
+    );
+
+    expect(countHashtags(withoutHashtags)).toBe(0);
+    expect(customOnly).toMatch(/#AlwaysIncluded$/u);
+    expect(countHashtags(customOnly)).toBe(1);
   });
 
   it('keeps prompt-like text inside a validated data envelope', () => {

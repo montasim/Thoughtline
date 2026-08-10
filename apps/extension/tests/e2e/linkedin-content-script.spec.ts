@@ -37,13 +37,14 @@ test('the compiled content script returns the exact repeated-wrapper comment tar
     });
   });
   await page.addScriptTag({
-    path: path.resolve('.output/chrome-mv3/linkedin.js'),
+    path: path.resolve('.output/linkedin.js'),
   });
 
   const response = await page
     .locator('[data-target="modern-repeated-comment"]')
     .evaluate(async (target) => {
       target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, composed: true }));
+      target.remove();
       const scope = globalThis as typeof globalThis & {
         __thoughtlineMessageListener?: (
           request: unknown,

@@ -46,6 +46,27 @@ export const sourceNameSchema = z.enum([
 ]);
 export type SourceName = z.infer<typeof sourceNameSchema>;
 
+export const hashtagPolicySchema = z.object({
+  generatedCount: z.number().int().min(0).max(10).default(5),
+  customHashtags: z
+    .array(
+      z
+        .string()
+        .trim()
+        .regex(/^#[\p{L}\p{M}\p{N}_]+$/u)
+        .max(49),
+    )
+    .max(10)
+    .default([])
+    .superRefine((hashtags, context) => {
+      const normalized = new Set(hashtags.map((hashtag) => hashtag.toLocaleLowerCase()));
+      if (normalized.size !== hashtags.length) {
+        context.addIssue({ code: 'custom', message: 'Custom hashtags must be unique.' });
+      }
+    }),
+});
+export type HashtagPolicy = z.infer<typeof hashtagPolicySchema>;
+
 export const writingProfileSchema = z.object({
   role: z.string().trim().max(160),
   topics: z.array(boundedText(100)).max(20),
@@ -86,6 +107,7 @@ export const appSettingsSchema = z.object({
   contextRefinementEnabled: z.boolean().default(true),
   retainRefinementSourceLink: z.boolean().default(true),
   requireExperienceConfirmation: z.boolean().default(true),
+  hashtagPolicy: hashtagPolicySchema.default({ generatedCount: 5, customHashtags: [] }),
   providerValidation: z.object({
     gemini: providerValidationSchema,
     groq: providerValidationSchema,
@@ -552,6 +574,7 @@ export const defaultAppData: AppData = {
     contextRefinementEnabled: true,
     retainRefinementSourceLink: true,
     requireExperienceConfirmation: true,
+    hashtagPolicy: { generatedCount: 5, customHashtags: [] },
     providerValidation: {
       gemini: { state: 'missing', credentialVersion: 0 },
       groq: { state: 'missing', credentialVersion: 0 },

@@ -36,12 +36,12 @@ export function AppShell({
   }, [contentKey]);
 
   return (
-    <div className="mx-auto grid h-dvh min-h-[620px] w-full min-w-80 max-w-[400px] grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-rule bg-canvas font-body text-ink shadow-panel">
+    <div className="mx-auto grid h-dvh min-h-0 w-full min-w-80 max-w-[400px] grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-rule bg-canvas font-body text-ink shadow-panel">
       <div
         key={activeTab}
         ref={scrollRegion}
         data-sidepanel-scroll
-        className="motion-view min-w-0 overflow-y-auto [scrollbar-color:#b8c5d4_transparent] [scrollbar-width:thin]"
+        className="motion-view min-w-0 overscroll-y-contain overflow-y-auto [scrollbar-color:#b8c5d4_transparent] [scrollbar-width:thin]"
       >
         <AppHeader savedLabel={savedLabel} statusLabel={savedStatusLabel} />
         <main className="min-w-0 px-4 pb-4">{children}</main>

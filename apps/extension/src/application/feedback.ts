@@ -134,7 +134,7 @@ export function applyLocalFeedbackSignals(
   score(
     next.featureScores,
     'hashtags',
-    featureDelta(feedback.generatedText, feedback.editedText, /#[\p{L}\p{N}_]+/gu),
+    featureDelta(feedback.generatedText, feedback.editedText, /#[\p{L}\p{M}\p{N}_]+/gu),
   );
   score(
     next.featureScores,

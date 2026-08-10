@@ -119,6 +119,7 @@ export function IdeasView() {
         candidate.source,
         structuredClone(app.profile),
         structuredClone(app.learnedPreferences),
+        structuredClone(app.settings.hashtagPolicy),
         signal,
       );
       const record = createIdeaHistory(candidate.title, candidate.source, generated);
@@ -154,6 +155,7 @@ export function IdeasView() {
         { lesson },
         structuredClone(app.profile),
         structuredClone(app.learnedPreferences),
+        structuredClone(app.settings.hashtagPolicy),
         signal,
       );
       const title = lesson.split(/[.!?\n]/)[0]?.slice(0, 120) || 'A lesson from your experience';
@@ -191,6 +193,7 @@ export function IdeasView() {
               source,
               structuredClone(app.profile),
               structuredClone(app.learnedPreferences),
+              structuredClone(app.settings.hashtagPolicy),
               signal,
             );
             const next = addRevision(postRecord, generated.output.post, generated.provider);

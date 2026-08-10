@@ -28,7 +28,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
   const [candidate, setCandidate] = useState<CalibrationCandidate | null>(null);
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState<AppErrorCode | null>(null);
-  const [usedFallback, setUsedFallback] = useState(false);
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
   const started = useRef<string | null>(null);
 
   const request = session?.calibration.status === 'pending' ? session.calibration : null;
@@ -144,7 +144,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
     void job.run(async (signal) => {
       try {
         const result = await proposeLayoutCalibration(capture.evidence, request.kind, signal);
-        const response: RuntimeResponse = await chrome.tabs.sendMessage(
+        let response: RuntimeResponse = await chrome.tabs.sendMessage(
           request.tabId,
           {
             type: 'content:validate-calibration',
@@ -154,6 +154,20 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
           },
           { frameId: request.frameId },
         );
+        let usedLocalFallback = false;
+        if (!response.ok && response.code === 'unsupported-layout') {
+          response = await chrome.tabs.sendMessage(
+            request.tabId,
+            {
+              type: 'content:validate-calibration',
+              requestId: request.requestId,
+              kind: request.kind,
+              proposal: capture.localCandidate.proposal,
+            },
+            { frameId: request.frameId },
+          );
+          usedLocalFallback = true;
+        }
         if (!response.ok || !('candidate' in response)) {
           throw new AppError(
             'unsupported-layout',
@@ -161,7 +175,13 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
           );
         }
         setCandidate(calibrationCandidateSchema.parse(response.candidate));
-        setUsedFallback(result.usedFallback);
+        setFallbackNotice(
+          usedLocalFallback
+            ? 'The AI mapping included unrelated controls, so Thoughtline used the validated on-device mapping.'
+            : result.usedFallback
+              ? 'Gemini was unavailable. Groq proposed this layout using the same reviewed evidence.'
+              : null,
+        );
         setPhase('preview');
         return result.value;
       } catch (reason) {
@@ -301,9 +321,9 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
 
       {(phase === 'preview' || phase === 'saving') && candidate ? (
         <>
-          {usedFallback ? (
+          {fallbackNotice ? (
             <div className="mb-3 rounded-lg border border-[#e1c789] bg-[#fff8e8] p-3 text-[11px] text-[#795713]">
-              Gemini was unavailable. Groq proposed this layout using the same reviewed evidence.
+              {fallbackNotice}
             </div>
           ) : null}
           <Card className="overflow-hidden p-0">

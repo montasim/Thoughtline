@@ -36,6 +36,7 @@ describe.skipIf(!enabled)('live AI response quality', () => {
       '',
       defaultAppData.profile,
       defaultAppData.learnedPreferences,
+      defaultAppData.settings.hashtagPolicy,
     );
     const report = evaluateRewriteQuality({
       source,
@@ -89,7 +90,7 @@ describe.skipIf(!enabled)('live AI response quality', () => {
         forbiddenClaims: ['faster', 'revenue', 'customers', 'outage'],
         maxWords: 90,
         allowEmoji: false,
-        allowHashtags: false,
+        allowHashtags: true,
       },
     });
     expect(failedChecks(report), JSON.stringify(result.record.directions, null, 2)).toEqual([]);
@@ -110,6 +111,7 @@ describe.skipIf(!enabled)('live AI response quality', () => {
       source,
       defaultAppData.profile,
       defaultAppData.learnedPreferences,
+      defaultAppData.settings.hashtagPolicy,
     );
     const report = evaluatePostQuality({
       source: `${source.title} ${source.excerpt}`,
@@ -119,7 +121,7 @@ describe.skipIf(!enabled)('live AI response quality', () => {
         forbiddenClaims: ['benchmark', 'outage', 'customers', 'the full article'],
         maxWords: 220,
         allowEmoji: false,
-        allowHashtags: false,
+        allowHashtags: true,
       },
     });
     expect(failedChecks(report), result.output.post).toEqual([]);

@@ -5,7 +5,7 @@ import type { AppData, SessionState } from '../../src/domain/schemas';
 import { visualAppData, visualSession } from '../fixtures/app-data';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const extensionPath = path.join(root, '.output/chrome-mv3');
+const extensionPath = path.join(root, '.output');
 let context: BrowserContext | undefined;
 let page: Page;
 
@@ -45,7 +45,14 @@ test('a writer can refine pasted content, choose a custom goal, and resume after
     .fill('The migration worked, but our review did not explain which boundary carried the risk.');
   await page.getByLabel('Refinement goal').click();
   await page.getByRole('option', { name: 'Custom goal' }).click();
-  await page.getByLabel('Custom goal').fill('Make the trade-off explicit and keep it concise.');
+  const customGoal = page.getByLabel('Custom goal');
+  await expect(customGoal).toHaveJSProperty('tagName', 'TEXTAREA');
+  await customGoal.fill('Make the trade-off explicit and keep it concise.');
+  await customGoal.evaluate((textarea: HTMLTextAreaElement) => {
+    textarea.setSelectionRange(4, 4);
+  });
+  await customGoal.pressSequentially(' this');
+  await expect(customGoal).toHaveValue('Make this the trade-off explicit and keep it concise.');
 
   await expect
     .poll(async () => (await readSession()).generateCompose)
@@ -53,7 +60,7 @@ test('a writer can refine pasted content, choose a custom goal, and resume after
       original:
         'The migration worked, but our review did not explain which boundary carried the risk.',
       goal: 'custom',
-      customGoal: 'Make the trade-off explicit and keep it concise.',
+      customGoal: 'Make this the trade-off explicit and keep it concise.',
     });
 
   await reload();
@@ -62,7 +69,7 @@ test('a writer can refine pasted content, choose a custom goal, and resume after
   );
   await expect(page.getByLabel('Refinement goal')).toContainText('Custom goal');
   await expect(page.getByLabel('Custom goal')).toHaveValue(
-    'Make the trade-off explicit and keep it concise.',
+    'Make this the trade-off explicit and keep it concise.',
   );
 });
 
@@ -77,10 +84,11 @@ test('a writer with validated credentials can complete a refinement', async () =
   await page.getByRole('button', { name: 'Refine content' }).click();
 
   await expect(page.getByRole('heading', { name: 'Your refined version' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate image' })).toBeVisible();
   const editableRefinement = page.getByLabel('Editable refinement');
   const refinedText = await editableRefinement.inputValue();
   expect(refinedText).toContain('The review succeeded, but its trade-off remained implicit.');
-  const manualHashtagCount = refinedText.match(/#[\p{L}\p{N}_]+/gu)?.length ?? 0;
+  const manualHashtagCount = refinedText.match(/#[\p{L}\p{M}\p{N}_]+/gu)?.length ?? 0;
   expect(manualHashtagCount).toBeGreaterThanOrEqual(5);
   expect(manualHashtagCount).toBeLessThanOrEqual(10);
   await page.evaluate(() => {
@@ -182,7 +190,7 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
     /The review succeeded, but its trade-off remained implicit\.[\s\S]*https:\/\/www\.linkedin\.com\/feed\/update\/urn:li:activity:123\//u,
   );
   const contextHashtagCount =
-    (await editableContextRefinement.inputValue()).match(/#[\p{L}\p{N}_]+/gu)?.length ?? 0;
+    (await editableContextRefinement.inputValue()).match(/#[\p{L}\p{M}\p{N}_]+/gu)?.length ?? 0;
   expect(contextHashtagCount).toBeGreaterThanOrEqual(5);
   expect(contextHashtagCount).toBeLessThanOrEqual(10);
   await expect
@@ -210,7 +218,7 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
               'https://www.linkedin.com/feed/update/urn:li:activity:123/',
             ),
             hasSmoothEdit: result.currentText.endsWith(smoothEdit.trim()),
-            hashtagCount: result.currentText.match(/#[\p{L}\p{N}_]+/gu)?.length ?? 0,
+            hashtagCount: result.currentText.match(/#[\p{L}\p{M}\p{N}_]+/gu)?.length ?? 0,
           }
         : null;
     })

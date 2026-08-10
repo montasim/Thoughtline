@@ -1,11 +1,12 @@
 import { defineUnlistedScript } from 'wxt/utils/define-unlisted-script';
-import { extractLinkedInPost } from '../src/content/linkedin-extractor';
+import { extractLinkedInPostSelfHealing } from '../src/content/self-healing-extractor';
 import { AppError, toAppError } from '../src/application/errors';
 import { runtimeRequestSchema, type RuntimeResponse } from '../src/shared/protocol';
+import type { CalibratedLayoutRecipe } from '../src/domain/calibration';
+import type { PostContext } from '../src/domain/schemas';
 import {
   captureLayoutCalibration,
   clearCalibrationCapture,
-  getEphemeralLayoutBindings,
   validateLayoutCalibrationProposal,
 } from '../src/content/layout-calibration';
 
@@ -15,10 +16,27 @@ export default defineUnlistedScript(() => {
   scope.__thoughtlineLinkedInLoaded = true;
 
   let lastContextTarget: Element | null = null;
+  let detectedContexts: Partial<Record<'reply' | 'refine', PostContext>> = {};
   document.addEventListener(
     'contextmenu',
     (event) => {
       lastContextTarget = event.target instanceof Element ? event.target : null;
+      detectedContexts = {};
+      if (!lastContextTarget) return;
+      for (const intent of ['reply', 'refine'] as const) {
+        try {
+          const result = extractLinkedInPostSelfHealing(
+            lastContextTarget,
+            window.location.href,
+            [],
+            intent,
+          );
+          detectedContexts[intent] = result.context;
+          saveDiscoveredLayouts(result.learnedRecipes);
+        } catch {
+          // Saved recipes may still recover this target when the workflow starts.
+        }
+      }
     },
     { capture: true, passive: true },
   );
@@ -31,6 +49,34 @@ export default defineUnlistedScript(() => {
         if (parsed.data.type === 'content:clear-calibration') {
           clearCalibrationCapture();
           sendResponse({ ok: true });
+          return false;
+        }
+        if (parsed.data.type === 'content:extract-selected-post') {
+          const cached = detectedContexts[parsed.data.intent];
+          if (!lastContextTarget?.isConnected) {
+            if (cached) {
+              sendResponse({ ok: true, context: cached });
+              return false;
+            }
+            throw new AppError(
+              'no-post-found',
+              'Right-click the LinkedIn post again, then choose Thoughtline.',
+            );
+          }
+          try {
+            const result = extractLinkedInPostSelfHealing(
+              lastContextTarget,
+              window.location.href,
+              parsed.data.recipes,
+              parsed.data.intent,
+            );
+            detectedContexts[parsed.data.intent] = result.context;
+            saveDiscoveredLayouts(result.learnedRecipes);
+            sendResponse({ ok: true, context: result.context });
+          } catch (error) {
+            if (!cached) throw error;
+            sendResponse({ ok: true, context: cached });
+          }
           return false;
         }
         if (!lastContextTarget?.isConnected) {
@@ -61,18 +107,7 @@ export default defineUnlistedScript(() => {
           });
           return false;
         }
-        if (parsed.data.type !== 'content:extract-selected-post') return false;
-        const ephemeral = getEphemeralLayoutBindings(lastContextTarget);
-        sendResponse({
-          ok: true,
-          context: extractLinkedInPost(
-            lastContextTarget,
-            window.location.href,
-            [...parsed.data.recipes, ...ephemeral.map((binding) => binding.recipe)],
-            ephemeral,
-            parsed.data.intent,
-          ),
-        });
+        return false;
       } catch (error) {
         const appError = toAppError(error);
         const cause =
@@ -102,3 +137,11 @@ export default defineUnlistedScript(() => {
     },
   );
 });
+
+function saveDiscoveredLayouts(recipes: CalibratedLayoutRecipe[]): void {
+  for (const recipe of recipes) {
+    void chrome.runtime
+      .sendMessage({ type: 'calibration:save-discovered-layout', recipe })
+      .catch(() => undefined);
+  }
+}

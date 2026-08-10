@@ -434,8 +434,9 @@ function SavedContentHeader({
 
   return (
     <div className="flex min-h-[34px] items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-2">
-        <strong className="text-xs">{label}</strong>
+      <strong className="min-w-0 text-xs">{label}</strong>
+      <div className="ml-auto flex items-center gap-2">
+        {meta ? <span className="text-right text-[10px] text-muted">{meta}</span> : null}
         <Button
           size="icon"
           variant="secondary"
@@ -449,7 +450,6 @@ function SavedContentHeader({
           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
         </Button>
       </div>
-      {meta ? <span className="text-right text-[10px] text-muted">{meta}</span> : null}
       <span className="sr-only" aria-live="polite">
         {copied ? `${label} copied to clipboard` : ''}
       </span>
