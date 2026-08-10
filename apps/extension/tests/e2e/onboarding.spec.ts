@@ -6,7 +6,7 @@ import { defaultAppData } from '../../src/domain/schemas';
 import { approvedPrototype } from '../helpers/prototype-reference';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const extensionPath = path.join(root, '.output/chrome-mv3');
+const extensionPath = path.join(root, '.output');
 let context: BrowserContext | undefined;
 let page: Page;
 

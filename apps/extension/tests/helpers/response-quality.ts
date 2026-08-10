@@ -190,7 +190,7 @@ function textPolicyChecks(name: string, text: string, policy: TextPolicy): Quali
     checks.push(
       check(
         `${name} avoids hashtags`,
-        !/(^|\s)#[\p{L}\p{N}_]+/gu.test(text),
+        !/(^|\s)#[\p{L}\p{M}\p{N}_]+/gu.test(text),
         'Hashtags are disabled.',
       ),
     );

@@ -76,7 +76,7 @@ Thoughtline asks only when a capability needs permission:
 4. Add a role, topics, and audience. PDF profile import is optional.
 5. Optionally enable public research sources as you use Idea search.
 
-Provider keys are encrypted at rest with AES-256-GCM and a non-exportable device key before being placed in Chrome extension storage. They are excluded from exports, diagnostics, and History. Encryption at rest is not a defense against a compromised browser or operating system.
+Provider keys are encrypted at rest with AES-256-GCM and a non-exportable device key before being placed in Chrome extension storage. They are excluded from data archives, diagnostics, History, and configuration backups unless the user explicitly selects **Include secrets**. A secret-inclusive configuration backup is readable JSON and must be stored securely. Encryption at rest is not a defense against a compromised browser or operating system.
 
 ## Reply workflow
 

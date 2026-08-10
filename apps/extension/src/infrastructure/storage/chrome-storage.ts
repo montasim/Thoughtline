@@ -176,6 +176,16 @@ export class ChromeStorageRepository {
     return next;
   }
 
+  async saveDiscoveredLayoutRecipe(
+    value: CalibratedLayoutRecipe,
+  ): Promise<CalibratedLayoutRecipe[]> {
+    const recipe = calibratedLayoutRecipeSchema.parse(value);
+    if (recipe.validationCount < 2) return this.loadLayoutRecipes();
+    const current = await this.loadLayoutRecipes();
+    if (current.some((item) => sameLayoutStructure(item, recipe))) return current;
+    return this.saveLayoutRecipe(recipe);
+  }
+
   async quarantineLayoutRecipe(id: string, reason: string): Promise<void> {
     const current = await this.loadLayoutRecipes();
     const now = new Date().toISOString();
@@ -202,6 +212,11 @@ export class ChromeStorageRepository {
 
   async clearLayoutRecipes(): Promise<void> {
     await chrome.storage.local.remove(CALIBRATION_KEY);
+  }
+
+  async replaceLayoutRecipes(values: CalibratedLayoutRecipe[]): Promise<void> {
+    const recipes = calibratedLayoutRecipeListSchema.parse(values);
+    await chrome.storage.local.set({ [CALIBRATION_KEY]: recipes });
   }
 
   async claimJob(ownerId: string, timeoutMs = 5 * 60_000): Promise<ActiveJobLease> {
@@ -272,6 +287,16 @@ export class ChromeStorageRepository {
     await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
     await chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   }
+}
+
+function sameLayoutStructure(left: CalibratedLayoutRecipe, right: CalibratedLayoutRecipe): boolean {
+  return (
+    left.kind === right.kind &&
+    left.surface === right.surface &&
+    left.authorStrategy === right.authorStrategy &&
+    JSON.stringify(left.boundary) === JSON.stringify(right.boundary) &&
+    JSON.stringify(left.primaryText) === JSON.stringify(right.primaryText)
+  );
 }
 
 function applyRetention(data: AppData): AppData {

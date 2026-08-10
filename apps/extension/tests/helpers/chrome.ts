@@ -81,7 +81,21 @@ export function installChromeMock(): ChromeMemory {
     },
     extension: { inIncognitoContext: false },
     runtime: {
-      getManifest: () => ({ version: '0.1.0' }),
+      getManifest: vi.fn(() => ({
+        version: '0.1.0',
+        optional_permissions: ['unlimitedStorage'],
+        optional_host_permissions: [
+          'https://www.linkedin.com/*',
+          'https://generativelanguage.googleapis.com/*',
+          'https://api.groq.com/*',
+          'https://api.cloudflare.com/*',
+          'https://hacker-news.firebaseio.com/*',
+          'https://dev.to/*',
+          'https://medium.com/*',
+          'https://lobste.rs/*',
+          'https://api.stackexchange.com/*',
+        ],
+      })),
       sendMessage: vi.fn(),
     },
   };

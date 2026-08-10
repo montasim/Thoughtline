@@ -37,6 +37,8 @@ const COMMENTISH_SELECTOR = [
   '[data-id^="urn:li:comment"]',
   '[data-view-name="comment-container"]',
 ].join(',');
+const EXPANDABLE_TEXT_CONTROL_SELECTOR =
+  'button[aria-hidden="true"][data-testid="expandable-text-button"],button[aria-hidden="true"][data-test-id="expandable-text-button"]';
 
 interface LiveCapture {
   requestId: string;
@@ -76,7 +78,7 @@ export interface EphemeralLayoutBinding {
 
 export function inferVisibleLayout(target: Element, kind: CalibrationKind): InferredVisibleLayout {
   const boundary = inferBoundary(target, kind);
-  const primaryText = inferPrimaryText(boundary, kind);
+  const primaryText = inferPrimaryText(boundary, kind, target);
   const author = inferAuthorNode(boundary, kind);
   return {
     boundary,
@@ -91,6 +93,7 @@ export function captureLayoutCalibration(
   target: Element,
   requestId: string,
   kind: CalibrationKind,
+  showOutline = true,
 ): CalibrationCapture {
   if (!target.isConnected) {
     throw new AppError('no-post-found', 'Right-click the LinkedIn item again.');
@@ -115,7 +118,7 @@ export function captureLayoutCalibration(
     expiresAt: Date.now() + CALIBRATION_TIMEOUT_MS,
   };
   liveCapture = capture;
-  showCalibrationOutline(inferredBoundary);
+  if (showOutline) showCalibrationOutline(inferredBoundary);
 
   const localCandidate = compileCandidate(
     capture,
@@ -128,6 +131,12 @@ export function captureLayoutCalibration(
     },
     kind,
   );
+  ephemeralCalibrations.set(kind, {
+    recipe: localCandidate.recipe,
+    boundary: inferredBoundary,
+    primaryText,
+    author,
+  });
 
   const evidence = {
     schemaVersion: 1 as const,
@@ -288,7 +297,9 @@ function compileCandidate(
   }
   if (
     primaryText.matches('button,[role="button"],a[href*="/in/"]') ||
-    primaryText.querySelector('button,[role="button"],a[href*="/in/"]')
+    [...primaryText.querySelectorAll('button,[role="button"],a[href*="/in/"]')].some(
+      (element) => !element.matches(EXPANDABLE_TEXT_CONTROL_SELECTOR),
+    )
   ) {
     throw new AppError(
       'unsupported-layout',
@@ -301,16 +312,17 @@ function compileCandidate(
   if (author && !boundary.contains(author) && boundary !== author) {
     throw new AppError('unsupported-layout', 'The proposed author is outside the boundary.');
   }
-  const text = normalizeUntrustedText(visibleText(primaryText)).slice(0, 4_000);
+  const text = normalizeUntrustedText(authoredText(primaryText)).slice(0, 4_000);
   if (!text) throw new AppError('unsupported-layout', 'The proposed primary text is empty.');
-  const authorName = author ? extractProfileName(author) : '';
+  const controlledPostAuthor = kind === 'post' ? postAuthorFromControls(boundary) : '';
+  const authorName = author ? extractProfileName(author) : controlledPostAuthor;
   if (author && !authorName) {
     throw new AppError(
       'unsupported-layout',
       'The proposed author node is not visible profile metadata for this item.',
     );
   }
-  if (!author && ownedProfileLinks(boundary, kind).length > 0) {
+  if (!author && !controlledPostAuthor && ownedProfileLinks(boundary, kind).length > 0) {
     throw new AppError(
       'unsupported-layout',
       'A visible profile belongs to this item, but the proposal did not map its author.',
@@ -328,7 +340,7 @@ function compileCandidate(
     status: 'active',
     boundary: boundaryPattern,
     primaryText: primaryTextPattern,
-    authorStrategy: authorName ? 'profile-metadata' : 'neutral',
+    authorStrategy: author ? 'profile-metadata' : 'neutral',
     validationCount,
     createdAt: now,
     updatedAt: now,
@@ -398,10 +410,15 @@ function boundaryScore(element: Element, kind: CalibrationKind): number {
   return score;
 }
 
-function inferPrimaryText(boundary: Element, kind: CalibrationKind): Element {
+function inferPrimaryText(boundary: Element, kind: CalibrationKind, target: Element): Element {
   const candidates = ownedTextCandidates(boundary, kind)
     .filter((element) => visibleText(element).trim().length > 0)
-    .sort((left, right) => visibleText(right).length - visibleText(left).length);
+    .sort((left, right) => {
+      const leftOwnsTarget = left === target || left.contains(target);
+      const rightOwnsTarget = right === target || right.contains(target);
+      if (leftOwnsTarget !== rightOwnsTarget) return leftOwnsTarget ? -1 : 1;
+      return visibleText(right).length - visibleText(left).length;
+    });
   const winner = candidates[0];
   if (!winner) {
     throw new AppError('unsupported-layout', 'No primary text was found inside the boundary.');
@@ -410,7 +427,26 @@ function inferPrimaryText(boundary: Element, kind: CalibrationKind): Element {
 }
 
 function inferAuthorNode(boundary: Element, kind: CalibrationKind): Element | null {
-  return ownedProfileLinks(boundary, kind)[0] ?? null;
+  const profiles = ownedProfileLinks(boundary, kind);
+  if (kind === 'post') {
+    const menuAuthor = postAuthorFromControls(boundary);
+    const matchingProfile = profiles.find(
+      (profile) =>
+        extractProfileName(profile).toLocaleLowerCase() === menuAuthor.toLocaleLowerCase(),
+    );
+    if (matchingProfile) return matchingProfile;
+    if (menuAuthor) return null;
+  }
+  return profiles[0] ?? null;
+}
+
+function postAuthorFromControls(boundary: Element): string {
+  for (const control of boundary.querySelectorAll('[aria-label]')) {
+    const label = normalizeUntrustedText(control.getAttribute('aria-label') ?? '');
+    const match = label.match(/^(?:Open control menu|Hide post) for post by (.+)$/iu);
+    if (match?.[1]) return cleanAuthor(match[1]);
+  }
+  return '';
 }
 
 function ownedTextCandidates(boundary: Element, kind: CalibrationKind): Element[] {
@@ -665,8 +701,10 @@ function extractProfileName(element: Element): string {
     const label = normalizeUntrustedText(
       candidate.getAttribute('alt') ?? candidate.getAttribute('aria-label') ?? '',
     );
-    const match = label.match(/^View (.+?)[\u2019']s profile$/iu);
+    const match = label.match(/^View (.+?)[\u2019']s profile(?:,\s*open to work)?$/iu);
     if (match?.[1]) return cleanAuthor(match[1]);
+    const organizationMatch = label.match(/^View (?:company|school):\s*(.+)$/iu);
+    if (organizationMatch?.[1]) return cleanAuthor(organizationMatch[1]);
     if (/\bVerified Profile\b|\b(?:1st|2nd|3rd)\s*$/iu.test(label)) return cleanAuthor(label);
   }
   return cleanAuthor(visibleText(link));
@@ -674,7 +712,9 @@ function extractProfileName(element: Element): string {
 
 function cleanAuthor(value: string): string {
   return normalizeUntrustedText(value)
+    .replace(/,?\s+Open to work(?=\s|$)/giu, '')
     .replace(/\s+Verified Profile(?=\s|$)/giu, '')
+    .replace(/\s+Premium Profile(?=\s|$)/giu, '')
     .replace(/\s*[\u2022\u00b7]?\s*(?:1st|2nd|3rd)\s*$/iu, '')
     .trim()
     .slice(0, 160);
@@ -691,6 +731,14 @@ function directText(element: Element): string {
 function visibleText(element: Element): string {
   const html = element as HTMLElement;
   return html.innerText || html.textContent || '';
+}
+
+function authoredText(element: Element): string {
+  if (!element.querySelector(EXPANDABLE_TEXT_CONTROL_SELECTOR)) return visibleText(element);
+  const clone = element.cloneNode(true) as Element;
+  clone.querySelectorAll(EXPANDABLE_TEXT_CONTROL_SELECTOR).forEach((control) => control.remove());
+  clone.querySelectorAll('br').forEach((lineBreak) => lineBreak.replaceWith('\n'));
+  return clone.textContent ?? '';
 }
 
 function isVisible(element: Element): boolean {

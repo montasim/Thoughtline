@@ -16,6 +16,40 @@ import { Button } from '../../primitives/button';
 import { ConfirmDialog } from '../../primitives/alert-dialog';
 import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
+import { CredentialSetupGuide } from './credential-setup-guide';
+
+const providerGuides = {
+  gemini: {
+    title: 'Get a Gemini API key',
+    href: 'https://aistudio.google.com/apikey',
+    actionLabel: 'Open AI Studio',
+    steps: [
+      'Sign in and accept the Gemini API terms if Google asks.',
+      'Select or import a Google Cloud project, then choose Create API key.',
+      'Copy the new key and paste it in the field above.',
+    ],
+  },
+  groq: {
+    title: 'Get a Groq API key',
+    href: 'https://console.groq.com/keys',
+    actionLabel: 'Open Groq keys',
+    steps: [
+      'Sign in to GroqCloud and select the project Thoughtline should use.',
+      'Choose Create API Key and give the key a recognizable name.',
+      'Copy the generated key and paste it in the field above.',
+    ],
+    note: 'Only a Groq team owner or a user with the developer role can create API keys.',
+  },
+} as const satisfies Record<
+  ProviderName,
+  {
+    title: string;
+    href: string;
+    actionLabel: string;
+    steps: readonly string[];
+    note?: string;
+  }
+>;
 
 export function ApiKeysPanel({
   app,
@@ -181,6 +215,7 @@ export function ApiKeysPanel({
                 {result[provider] ? (
                   <p className="text-[10.5px] text-muted">{result[provider]}</p>
                 ) : null}
+                <CredentialSetupGuide {...providerGuides[provider]} />
               </FieldGroup>
             ))}
             <p className="text-[10.5px] leading-relaxed text-muted">

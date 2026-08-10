@@ -27,6 +27,7 @@ import {
   type RefinementState,
   type RewriteGoal,
   type RewriteHistoryRecord,
+  type SessionState,
   type WritingProfile,
 } from '../../../domain/schemas';
 import {
@@ -170,6 +171,9 @@ export function GenerateView() {
   const job = useForegroundJob();
   const [editingSource, setEditingSource] = useState(false);
   const [ephemeral, setEphemeral] = useState<RewriteHistoryRecord | null>(null);
+  const [composeDraft, setComposeDraft] = useState<SessionState['generateCompose'] | null>(null);
+  const composeDraftRef = useRef<SessionState['generateCompose'] | null>(null);
+  const composeSaveQueue = useRef(Promise.resolve());
   const started = useRef(new Set<string>());
   const reviewCache = useRef<Extract<RefinementState, { status: 'review' }> | null>(null);
 
@@ -178,6 +182,12 @@ export function GenerateView() {
     : undefined;
   const record = ephemeral ?? (selected?.type === 'rewrite' ? selected : null);
   const refinement = session?.refinement;
+
+  useEffect(() => {
+    if (!session || composeDraftRef.current) return;
+    composeDraftRef.current = session.generateCompose;
+    setComposeDraft(session.generateCompose);
+  }, [session]);
 
   useEffect(() => {
     if (refinement?.status === 'review') reviewCache.current = refinement;
@@ -330,12 +340,20 @@ export function GenerateView() {
 
   if (!app || !session) return null;
 
-  const updateCompose = async (patch: Partial<typeof session.generateCompose>) => {
-    await storageRepository.updateSession((current) => ({
-      ...current,
-      generateCompose: { ...current.generateCompose, ...patch },
-    }));
-    await refresh();
+  const updateCompose = (patch: Partial<typeof session.generateCompose>) => {
+    const next = { ...(composeDraftRef.current ?? session.generateCompose), ...patch };
+    composeDraftRef.current = next;
+    setComposeDraft(next);
+
+    const save = composeSaveQueue.current.then(async () => {
+      await storageRepository.updateSession((current) => ({
+        ...current,
+        generateCompose: next,
+      }));
+      await refresh();
+    });
+    composeSaveQueue.current = save.catch(() => undefined);
+    return save;
   };
 
   const persistRecord = async (
@@ -356,7 +374,7 @@ export function GenerateView() {
   };
 
   const generate = () => {
-    const compose = session.generateCompose;
+    const compose = composeDraft ?? session.generateCompose;
     void job.run(async (signal) => {
       const completed = await rewriteContent(
         compose.original,
@@ -364,6 +382,7 @@ export function GenerateView() {
         compose.customGoal,
         structuredClone(app.profile),
         structuredClone(app.learnedPreferences),
+        structuredClone(app.settings.hashtagPolicy),
         signal,
       );
       await persistRecord({ ...completed.record, mode: 'manual' });
@@ -399,6 +418,7 @@ export function GenerateView() {
           review.retainSourceLink,
           structuredClone(app.profile),
           structuredClone(app.learnedPreferences),
+          structuredClone(app.settings.hashtagPolicy),
           signal,
         );
         await storageRepository.updateSession((current) => ({
@@ -595,7 +615,7 @@ export function GenerateView() {
     );
   }
 
-  const compose = session.generateCompose;
+  const compose = composeDraft ?? session.generateCompose;
   if (!record || editingSource) {
     return (
       <>
@@ -644,10 +664,11 @@ export function GenerateView() {
           {compose.goal === 'custom' ? (
             <FieldGroup className="mt-3">
               <Label htmlFor="custom-rewrite-goal">Custom goal</Label>
-              <Input
+              <Textarea
                 id="custom-rewrite-goal"
                 value={compose.customGoal}
                 onChange={(event) => void updateCompose({ customGoal: event.target.value })}
+                className="min-h-20"
               />
             </FieldGroup>
           ) : null}
@@ -682,6 +703,7 @@ export function GenerateView() {
         record.customGoal,
         structuredClone(app.profile),
         structuredClone(app.learnedPreferences),
+        structuredClone(app.settings.hashtagPolicy),
         signal,
       );
       const next = addRevision(record, completed.record.currentText, completed.record.provider);
@@ -692,6 +714,7 @@ export function GenerateView() {
   return (
     <ManualRefinementResult
       record={record}
+      profile={app.profile}
       error={job.error}
       running={job.running}
       onRegenerate={regenerate}
@@ -702,6 +725,13 @@ export function GenerateView() {
           customGoal: record.customGoal,
         });
         setEditingSource(true);
+      }}
+      onOpenSettings={async () => {
+        await storageRepository.updateSession((current) => ({
+          ...current,
+          activeTab: 'settings',
+        }));
+        await refresh();
       }}
       onUpdate={updateManualRecord}
     />
@@ -1130,8 +1160,8 @@ export function PostIllustrationPanel({
     >
       <div className="p-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-2">
-            <ImagePlus className="mt-0.5 size-4 shrink-0 text-primary" />
+          <div className="flex min-w-0 items-center gap-2">
+            <ImagePlus className="size-4 shrink-0 text-primary" />
             <div className="min-w-0">
               <strong
                 id="post-illustration-title"
@@ -1329,17 +1359,21 @@ export function PostIllustrationPanel({
 
 function ManualRefinementResult({
   record,
+  profile,
   error,
   running,
   onRegenerate,
   onEditSource,
+  onOpenSettings,
   onUpdate,
 }: {
   record: RewriteHistoryRecord;
+  profile: WritingProfile;
   error: string | null;
   running: boolean;
   onRegenerate: () => void;
   onEditSource: () => void;
+  onOpenSettings: () => Promise<void>;
   onUpdate: (record: RewriteHistoryRecord, feedback?: Feedback) => Promise<void>;
 }) {
   const draft = useRewriteDraft(record, onUpdate);
@@ -1387,6 +1421,11 @@ function ManualRefinementResult({
           onBlur={draft.flush}
           onChange={(event) => draft.change(event.target.value)}
           className="mt-3 min-h-[280px] resize-none overflow-hidden"
+        />
+        <PostIllustrationPanel
+          postText={draft.text}
+          profile={profile}
+          onOpenSettings={onOpenSettings}
         />
         <AccordionRoot className="mt-3" type="single" defaultValue="original" collapsible>
           <AccordionItem value="original">

@@ -370,6 +370,156 @@ describe('passive LinkedIn post extraction', () => {
     expect(context.discussion).toHaveLength(1);
   });
 
+  it('extracts the production feed text when LinkedIn nests its hidden expansion control inside it', () => {
+    document.body.innerHTML = productionExpandablePostFixture();
+    const target = document.querySelector('[data-testid="expandable-text-button"]');
+    if (!target) throw new Error('Production expansion-control target missing');
+
+    const context = extractLinkedInPost(target, 'https://www.linkedin.com/feed/', [], [], 'refine');
+
+    expect(context.author).toBe('Muhammed altaf Hossain');
+    expect(context.postText).toContain('Clean Code মানেই শুধু সুন্দর দেখতে কোড না');
+    expect(context.postText).toContain('#CleanCode');
+    expect(context.postText).toContain('#DotNet');
+    expect(context.postText).not.toContain('… more');
+    expect(context.responseTarget).toMatchObject({ type: 'post' });
+
+    const capture = captureLayoutCalibration(target, createId(), 'post');
+    expect(capture.localCandidate.preview.text).toContain('Clean Code মানেই');
+    expect(capture.localCandidate.preview.text).not.toContain('… more');
+  });
+
+  it('keeps reshare social context separate from the post author and clicked text', () => {
+    document.body.innerHTML = productionReshareFixture();
+    const outerText = document.querySelector('[data-target="reshare-commentary"]');
+    const sharedText = document.querySelector('[data-target="shared-post-text"]');
+    if (!outerText || !sharedText) throw new Error('Production reshare targets missing');
+
+    const outerContext = extractLinkedInPost(
+      outerText,
+      'https://www.linkedin.com/feed/',
+      [],
+      [],
+      'refine',
+    );
+    const sharedContext = extractLinkedInPost(
+      sharedText,
+      'https://www.linkedin.com/feed/',
+      [],
+      [],
+      'refine',
+    );
+
+    expect(outerContext.author).toBe('Sajidur Rahman Shajib');
+    expect(outerContext.author).not.toBe('Md. Hafizur Rahman Arfin');
+    expect(outerContext.postText).toContain('দেখা উচিৎ');
+    expect(outerContext.postText).toContain('System design interview');
+    expect(outerContext.postPermalink).toContain('urn:li:share:7491924400125091840');
+    expect(sharedContext.responseTarget.type).toBe('post');
+
+    const outerCapture = captureLayoutCalibration(outerText, createId(), 'post');
+    expect(outerCapture.localCandidate.preview.author).toBe('Sajidur Rahman Shajib');
+    expect(outerCapture.localCandidate.preview.text).toContain('দেখা উচিৎ...');
+
+    const sharedCapture = captureLayoutCalibration(sharedText, createId(), 'post');
+    expect(sharedCapture.localCandidate.preview.text).toContain('System design interview');
+  });
+
+  it('extracts a company post author instead of the member who reacted to it', () => {
+    document.body.innerHTML = productionCompanyReactionFixture();
+    const target = document.querySelector('[data-target="company-post-text"]');
+    if (!target) throw new Error('Production company-post target missing');
+
+    const context = extractLinkedInPost(target, 'https://www.linkedin.com/feed/', [], [], 'refine');
+
+    expect(context.author).toBe('Humans of Programming Hero');
+    expect(context.author).not.toBe('Talha Tarique');
+    expect(context.postText).toContain('Programming Hero যাত্রা শুরু হয়');
+    expect(context.postPermalink).toContain('urn:li:share:7491496554583740416');
+
+    const capture = captureLayoutCalibration(target, createId(), 'post');
+    const binding = getEphemeralLayoutBinding(target);
+    expect(capture.localCandidate.preview.author).toBe('Humans of Programming Hero');
+    expect(binding).not.toBeNull();
+
+    const calibratedContext = extractLinkedInPost(
+      target,
+      'https://www.linkedin.com/feed/',
+      [capture.localCandidate.recipe],
+      binding ? [binding] : [],
+      'refine',
+    );
+    expect(calibratedContext.author).toBe('Humans of Programming Hero');
+  });
+
+  it('calibrates a suggested post whose author has open-to-work profile labels', () => {
+    document.body.innerHTML = productionSuggestedPostFixture();
+    const target = document.querySelector('[data-target="suggested-post-text"]');
+    if (!target) throw new Error('Production suggested-post target missing');
+
+    const context = extractLinkedInPost(target, 'https://www.linkedin.com/feed/', [], [], 'refine');
+    expect(context.author).toBe('Minhazul Abidin');
+    expect(context.postText).toContain('HTTP status code');
+    expect(context.postText).not.toContain('… more');
+
+    const capture = captureLayoutCalibration(target, createId(), 'post');
+    expect(capture.localCandidate.preview.author).toBe('Minhazul Abidin');
+    expect(capture.localCandidate.preview.text).toContain('18 HTTP Status Codes');
+  });
+
+  it('uses the post-menu author for a group reshare instead of the reacting member', () => {
+    document.body.innerHTML = productionGroupReshareFixture();
+    const outerText = document.querySelector('[data-target="group-reshare-commentary"]');
+    const sharedText = document.querySelector('[data-target="embedded-group-post"]');
+    if (!outerText || !sharedText) throw new Error('Production group-reshare targets missing');
+
+    const context = extractLinkedInPost(
+      sharedText,
+      'https://www.linkedin.com/feed/',
+      [],
+      [],
+      'refine',
+    );
+    expect(context.author).toBe('Mohammad Motamedifar');
+    expect(context.author).not.toBe('Rouzbeh Danesh');
+    expect(context.postText).toContain('👏💯👏');
+    expect(context.postText).toContain('She creates pottery from the very beginning');
+    expect(context.postPermalink).toContain('urn:li:activity:7492132174343639040');
+
+    const outerCapture = captureLayoutCalibration(outerText, createId(), 'post');
+    expect(outerCapture.localCandidate.preview.author).toBe('Mohammad Motamedifar');
+    expect(outerCapture.localCandidate.preview.text).toBe('👏💯👏');
+    expect(outerCapture.localCandidate.recipe.authorStrategy).toBe('neutral');
+
+    const sharedCapture = captureLayoutCalibration(sharedText, createId(), 'post');
+    expect(sharedCapture.localCandidate.preview.author).toBe('Mohammad Motamedifar');
+    expect(sharedCapture.localCandidate.preview.text).toContain('She creates pottery');
+    expect(sharedCapture.localCandidate.preview.text).not.toContain('… more');
+  });
+
+  it('keeps the authored member and inline company mention for a reaction-surfaced post', () => {
+    document.body.innerHTML = productionReactionSurfacedMemberPostFixture();
+    const target = document.querySelector('[data-target="reaction-surfaced-member-post"]');
+    if (!target) throw new Error('Production reaction-surfaced member-post target missing');
+
+    const context = extractLinkedInPost(target, 'https://www.linkedin.com/feed/', [], [], 'refine');
+    expect(context.author).toBe('Mazharul Islam Leon');
+    expect(context.author).not.toBe('Omar Faruk');
+    expect(context.postText).toContain('Alhamdulillah! I’m delighted to share');
+    expect(context.postText).toContain('Brain Station 23');
+    expect(context.postText).toContain('#bs23');
+    expect(context.postText).toContain('#challenge');
+    expect(context.postText).not.toContain('… more');
+    expect(context.postText).not.toContain('869 others reacted');
+
+    const capture = captureLayoutCalibration(target, createId(), 'post');
+    expect(capture.localCandidate.preview.author).toBe('Mazharul Islam Leon');
+    expect(capture.localCandidate.preview.text).toContain('Senior Software Engineer in AI/ML');
+    expect(capture.localCandidate.preview.text).toContain('Brain Station 23');
+    expect(capture.localCandidate.preview.text).not.toContain('… more');
+    expect(capture.localCandidate.recipe.authorStrategy).toBe('profile-metadata');
+  });
+
   it('uses a validated structural recipe when LinkedIn introduces an unknown post wrapper', () => {
     document.body.innerHTML = `
       <section data-testid="novel-post-shell">
@@ -789,6 +939,333 @@ function commentReplyOutput() {
       },
     ],
   };
+}
+
+function productionExpandablePostFixture(): string {
+  return `
+    <div class="obfuscated-virtual-wrapper">
+      <div
+        id="expandedPE2I6GhUZjZy2RQXKV-JiQgVwD6tkle7UWVpaxgtCL0FeedType_MAIN_FEED_RELEVANCE"
+        componentkey="expandedPE2I6GhUZjZy2RQXKV-JiQgVwD6tkle7UWVpaxgtCL0FeedType_MAIN_FEED_RELEVANCE"
+      >
+        <div
+          role="listitem"
+          componentkey="expandedPE2I6GhUZjZy2RQXKV-JiQgVwD6tkle7UWVpaxgtCL0FeedType_MAIN_FEED_RELEVANCE"
+        >
+          <div componentkey="PE2I6GhUZjZy2RQXKV-JiQgVwD6tkle7UWVpaxgtCL0">
+            <h2><span>Feed post</span></h2>
+            <a href="https://www.linkedin.com/in/muhammed-altaf-hossain-719928108/">
+              <svg role="img" aria-label="View Muhammed altaf Hossain’s profile"></svg>
+            </a>
+            <div aria-label="Muhammed altaf Hossain Verified Profile 1st">
+              Muhammed altaf Hossain
+            </div>
+            <div
+              id="translatable-commentary-FeTranslationUrn(contentUrnShareUrn=ContentUrnShareUrn(shareUrn=ShareUrn(shareId=7492107853906944000)))"
+            >
+              <p>
+                <span tabindex="-1" data-testid="expandable-text-box">
+                  Clean Code মানেই শুধু সুন্দর দেখতে কোড না ✨<br>
+                  Clean Code আসলে টিমের জন্য একটা উপহার।<br><br>
+                  <a href="https://www.linkedin.com/search/results/all/?keywords=%23cleancode">
+                    <strong>#CleanCode</strong>
+                  </a>
+                  <a href="https://www.linkedin.com/search/results/all/?keywords=%23dotnet">
+                    <strong>#DotNet</strong>
+                  </a>
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    data-testid="expandable-text-button"
+                  ><span>… more</span></button>
+                </span>
+              </p>
+            </div>
+            <button type="button"><span>Comment</span></button>
+          </div>
+        </div>
+        <div id="replaceableCommentTools"></div>
+      </div>
+    </div>`;
+}
+
+function productionReshareFixture(): string {
+  return `
+    <div>
+      <div
+        id="expandedXMVuOf3k38MsRIVvIzRfs_n5D-Zfn7GJiXIk4r0i-ycFeedType_MAIN_FEED_RELEVANCE"
+        componentkey="expandedXMVuOf3k38MsRIVvIzRfs_n5D-Zfn7GJiXIk4r0i-ycFeedType_MAIN_FEED_RELEVANCE"
+      >
+        <div
+          role="listitem"
+          componentkey="expandedXMVuOf3k38MsRIVvIzRfs_n5D-Zfn7GJiXIk4r0i-ycFeedType_MAIN_FEED_RELEVANCE"
+        >
+          <h2><span>Feed post</span></h2>
+          <div>
+            <a href="https://www.linkedin.com/in/hrarfin/">
+              <svg role="img" aria-label="View Md. Hafizur Rahman Arfin’s profile"></svg>
+            </a>
+            <p><a href="https://www.linkedin.com/in/hrarfin/"><strong>Md. Hafizur Rahman Arfin</strong></a> likes this</p>
+          </div>
+          <button aria-label="Open control menu for post by Sajidur Rahman Shajib"></button>
+          <div>
+            <a href="https://www.linkedin.com/in/sajidurshajib/">
+              <svg role="img" aria-label="View Sajidur Rahman Shajib’s profile"></svg>
+            </a>
+            <div aria-label="Sajidur Rahman Shajib 2nd">Sajidur Rahman Shajib</div>
+          </div>
+          <div
+            id="translatable-commentary-FeTranslationUrn(contentUrnCommentUrn=null, contentUrnShareUrn=ContentUrnShareUrn(shareUrn=ShareUrn(shareId=7491924400125091840)))"
+          >
+            <p><span data-target="reshare-commentary" data-testid="expandable-text-box">পড়ে দেখা উচিৎ...</span></p>
+          </div>
+          <div>
+            <a href="https://www.linkedin.com/in/jamilxt/">
+              <svg role="img" aria-label="View Md Jamilur Rahman’s profile"></svg>
+            </a>
+            <div aria-label="Md Jamilur Rahman Premium Profile 2nd">Md Jamilur Rahman</div>
+          </div>
+          <a href="https://www.linkedin.com/feed/update/urn:li:share:7491705532110721024/">
+            <div
+              id="translatable-commentary-FeTranslationUrn(contentUrnCommentUrn=null, contentUrnShareUrn=ContentUrnShareUrn(shareUrn=ShareUrn(shareId=7491705532110721024)))"
+            >
+              <p>
+                <span data-target="shared-post-text" data-testid="expandable-text-box">
+                  System design interview এ প্রথম প্রশ্ন, এই scale এর জন্য কতগুলো server লাগবে?
+                </span>
+              </p>
+            </div>
+          </a>
+          <button><span>Comment</span></button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function productionCompanyReactionFixture(): string {
+  return `
+    <div>
+      <div
+        id="expanded4YVr-HFfqoiTSTGugYVxeCTGHIOToWvjfw4fbqpH0BUFeedType_MAIN_FEED_RELEVANCE"
+        componentkey="expanded4YVr-HFfqoiTSTGugYVxeCTGHIOToWvjfw4fbqpH0BUFeedType_MAIN_FEED_RELEVANCE"
+      >
+        <div
+          role="listitem"
+          componentkey="expanded4YVr-HFfqoiTSTGugYVxeCTGHIOToWvjfw4fbqpH0BUFeedType_MAIN_FEED_RELEVANCE"
+        >
+          <h2><span>Feed post</span></h2>
+          <div>
+            <a href="https://www.linkedin.com/in/talha-tarique/">
+              <svg role="img" aria-label="View Talha Tarique’s profile"></svg>
+            </a>
+            <p><a href="https://www.linkedin.com/in/talha-tarique/"><strong>Talha Tarique</strong></a> celebrates this</p>
+          </div>
+          <button aria-label="Open control menu for post by Humans of Programming Hero"></button>
+          <div>
+            <a href="https://www.linkedin.com/company/humans-of-programming-hero/posts/">
+              <svg role="img" aria-label="View company: Humans of Programming Hero"></svg>
+            </a>
+            <a href="https://www.linkedin.com/company/humans-of-programming-hero/posts/">
+              <div aria-label="Humans of Programming Hero">Humans of Programming Hero</div>
+            </a>
+          </div>
+          <div
+            id="translatable-commentary-FeTranslationUrn(contentUrnCommentUrn=null, contentUrnShareUrn=ContentUrnShareUrn(shareUrn=ShareUrn(shareId=7491496554583740416)))"
+          >
+            <p>
+              <span data-target="company-post-text" data-testid="expandable-text-box">
+                আমার Programming Hero যাত্রা শুরু হয় Level-1 থেকে।
+              </span>
+            </p>
+          </div>
+          <button><span>Comment</span></button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function productionSuggestedPostFixture(): string {
+  return `
+    <div>
+      <div
+        id="expandedHtLAuDMiNQ0ppKbFiZdsNF8H0brMOf3qIuxYJ6sbVdUFeedType_MAIN_FEED_RELEVANCE"
+        componentkey="expandedHtLAuDMiNQ0ppKbFiZdsNF8H0brMOf3qIuxYJ6sbVdUFeedType_MAIN_FEED_RELEVANCE"
+      >
+        <div
+          role="listitem"
+          componentkey="expandedHtLAuDMiNQ0ppKbFiZdsNF8H0brMOf3qIuxYJ6sbVdUFeedType_MAIN_FEED_RELEVANCE"
+        >
+          <h2><span>Feed post</span></h2>
+          <p><span>Suggested</span></p>
+          <button aria-label="Open control menu for post by Minhazul Abidin"></button>
+          <div>
+            <a href="https://www.linkedin.com/in/minhazulabidin/">
+              <svg
+                role="img"
+                aria-label="View Minhazul Abidin’s profile, open to work"
+              ></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/minhazulabidin/">
+              <div aria-label="Minhazul Abidin, Open to work Verified Profile 2nd">
+                Minhazul Abidin
+              </div>
+            </a>
+          </div>
+          <p>
+            <span data-target="suggested-post-text" data-testid="expandable-text-box">
+              জুনিয়র ডেভেলপাররা HTTP status code কে পাত্তা দেয় না।<br><br>
+              📌 18 HTTP Status Codes Every Developer Should Know<br><br>
+              <a href="https://www.linkedin.com/search/results/all/?keywords=%23http">
+                <strong>#HTTP</strong>
+              </a>
+              <button
+                type="button"
+                aria-hidden="true"
+                data-testid="expandable-text-button"
+              ><span>… more</span></button>
+            </span>
+          </p>
+          <button><span>Comment</span></button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function productionGroupReshareFixture(): string {
+  return `
+    <div>
+      <div
+        id="expandeddM9B8ni2HzNd_2UI7q_QxBUAgBWJL2fmLDP1QEmArpYFeedType_MAIN_FEED_RELEVANCE"
+        componentkey="expandeddM9B8ni2HzNd_2UI7q_QxBUAgBWJL2fmLDP1QEmArpYFeedType_MAIN_FEED_RELEVANCE"
+      >
+        <div
+          role="listitem"
+          componentkey="expandeddM9B8ni2HzNd_2UI7q_QxBUAgBWJL2fmLDP1QEmArpYFeedType_MAIN_FEED_RELEVANCE"
+        >
+          <h2><span>Feed post</span></h2>
+          <div>
+            <a href="https://www.linkedin.com/in/rouzbeh-danesh-910640127/">
+              <svg role="img" aria-label="View Rouzbeh Danesh’s profile, open to work"></svg>
+            </a>
+            <p>
+              <a href="https://www.linkedin.com/in/rouzbeh-danesh-910640127/">
+                <strong>Rouzbeh Danesh</strong>
+              </a>
+              likes this
+            </p>
+          </div>
+          <button aria-label="Open control menu for post by Mohammad Motamedifar"></button>
+          <div>
+            <a
+              href="https://www.linkedin.com/groups/2066905/?q=highlightedFeedForGroups&amp;highlightedUpdateUrn=urn%3Ali%3Aactivity%3A7492132174343639040"
+              aria-label="View group: Developers &amp; Engineers: Vibe Coding, AI Agents &amp; LLMs"
+            >
+              Developers &amp; Engineers: Vibe Coding, AI Agents &amp; LLMs
+            </a>
+            <a
+              href="https://www.linkedin.com/groups/2066905/?q=highlightedFeedForGroups&amp;highlightedUpdateUrn=urn%3Ali%3Aactivity%3A7492132174343639040"
+            >
+              <div aria-label="Mohammad Motamedifar, Open to work 3rd+">
+                Developers &amp; Engineers: Vibe Coding, AI Agents &amp; LLMs
+              </div>
+            </a>
+            <p>Mohammad Motamedifar • 3rd+</p>
+          </div>
+          <p>
+            <span data-target="group-reshare-commentary" data-testid="expandable-text-box">
+              👏💯👏
+            </span>
+          </p>
+          <div>
+            <a href="https://www.linkedin.com/feed/update/urn:li:groupPost:37657-7491838605858988032/">
+              <div>
+                <a href="https://www.linkedin.com/groups/37657/">Visual Artists and their Advocates</a>
+                <p>Youcef Bendou • 3rd+</p>
+              </div>
+              <p>
+                <span data-target="embedded-group-post" data-testid="expandable-text-box">
+                  She creates pottery from the very beginning—starting in the earth itself.
+                  Every step is intentional, every detail considered.
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    data-testid="expandable-text-button"
+                  ><span>… more</span></button>
+                </span>
+              </p>
+            </a>
+          </div>
+          <button><span>Comment</span></button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function productionReactionSurfacedMemberPostFixture(): string {
+  return `
+    <div>
+      <div
+        id="expandedOQjAQLCCdstns_SFhF_6VgsG0VcsCfvDzwn0g-WrLTkFeedType_MAIN_FEED_RELEVANCE"
+        componentkey="expandedOQjAQLCCdstns_SFhF_6VgsG0VcsCfvDzwn0g-WrLTkFeedType_MAIN_FEED_RELEVANCE"
+      >
+        <div
+          role="listitem"
+          componentkey="expandedOQjAQLCCdstns_SFhF_6VgsG0VcsCfvDzwn0g-WrLTkFeedType_MAIN_FEED_RELEVANCE"
+        >
+          <h2><span>Feed post</span></h2>
+          <div>
+            <a href="https://www.linkedin.com/in/omariut/">
+              <svg role="img" aria-label="View Omar Faruk’s profile"></svg>
+            </a>
+            <p>
+              <a href="https://www.linkedin.com/in/omariut/"><strong>Omar Faruk</strong></a>
+              likes this
+            </p>
+          </div>
+          <button aria-label="Open control menu for post by Mazharul Islam Leon"></button>
+          <div>
+            <a href="https://www.linkedin.com/in/mazharul-islam-leon-2b998b98/">
+              <svg role="img" aria-label="View Mazharul Islam Leon’s profile"></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/mazharul-islam-leon-2b998b98/">
+              <div aria-label="Mazharul Islam Leon Verified Profile 2nd">
+                Mazharul Islam Leon
+              </div>
+            </a>
+            <p>Senior AI/ML Engineer at Brain Station 23</p>
+          </div>
+          <p>
+            <span
+              data-target="reaction-surfaced-member-post"
+              data-testid="expandable-text-box"
+            >
+              Alhamdulillah! I’m delighted to share that I’ve officially joined
+              <a href="https://www.linkedin.com/company/brainstation-23/">
+                <strong>Brain Station 23</strong>
+              </a>
+              as a Senior Software Engineer in AI/ML.<br>
+              I’m sincerely grateful for this opportunity.<br><br>
+              <a href="https://www.linkedin.com/search/results/all/?keywords=%23bs23">
+                <strong>#bs23</strong>
+              </a>
+              <a href="https://www.linkedin.com/search/results/all/?keywords=%23ai">
+                <strong>#ai</strong>
+              </a>
+              <a href="https://www.linkedin.com/search/results/all/?keywords=%23challenge">
+                <strong>#challenge</strong>
+              </a>
+              <button
+                type="button"
+                aria-hidden="true"
+                data-testid="expandable-text-button"
+              ><span>… more</span></button>
+            </span>
+          </p>
+          <div><span>Safwan Alamgir and 869 others reacted</span></div>
+          <button><span>Comment</span></button>
+        </div>
+      </div>
+    </div>`;
 }
 
 function selectorlessDiscussionFixture(): string {

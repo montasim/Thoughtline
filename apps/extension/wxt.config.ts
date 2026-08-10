@@ -13,6 +13,8 @@ const sourceOrigins = [
 ];
 
 export default defineConfig({
+  // This project ships one Chrome MV3 target, so keep the unpacked build directly in .output.
+  outDirTemplate: '.',
   modules: ['@wxt-dev/module-react'],
   vite: (): WxtViteConfig => ({
     plugins: tailwindcss() as NonNullable<WxtViteConfig['plugins']>,

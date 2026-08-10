@@ -48,7 +48,7 @@ import { SwitchControl } from '../../primitives/switch';
 import { Textarea } from '../../primitives/textarea';
 import { PageHeading, StatusBadge } from '../../components/common';
 import { ApiKeysPanel } from './api-keys-panel';
-import { ArchiveDialogs } from './archive-dialogs';
+import { ConfigurationBackupDialogs, DataArchiveDialogs } from './archive-dialogs';
 import { ImageConnectionPanel } from './image-connection-panel';
 
 const SOURCES: Array<{ id: SourceName; label: string }> = [
@@ -92,6 +92,7 @@ export function SettingsView() {
   const [resetPreferencesOpen, setResetPreferencesOpen] = useState(false);
   const [layoutRecipes, setLayoutRecipes] = useState<CalibratedLayoutRecipe[]>([]);
   const [resetLayoutsOpen, setResetLayoutsOpen] = useState(false);
+  const [customHashtagDraft, setCustomHashtagDraft] = useState('');
   const feedbackJob = useForegroundJob();
 
   const form = useForm<WritingProfile>({
@@ -105,6 +106,10 @@ export function SettingsView() {
 
   useEffect(() => {
     if (app) setSampleDrafts(app.profile.writingSamples);
+  }, [app]);
+
+  useEffect(() => {
+    if (app) setCustomHashtagDraft(app.settings.hashtagPolicy.customHashtags.join(' '));
   }, [app]);
 
   useEffect(() => {
@@ -142,6 +147,10 @@ export function SettingsView() {
 
   const saveProfile = async (profile: WritingProfile) => {
     await saveApp({ ...app, profile });
+  };
+
+  const saveHashtagPolicy = async (hashtagPolicy: AppData['settings']['hashtagPolicy']) => {
+    await saveApp({ ...app, settings: { ...app.settings, hashtagPolicy } });
   };
 
   const saveProfileForm = form.handleSubmit(saveProfile);
@@ -454,7 +463,15 @@ export function SettingsView() {
               </SelectContent>
             </SelectRoot>
           </FieldGroup>
-          <ArchiveDialogs app={app} onImport={saveApp} />
+          <DataArchiveDialogs app={app} onImport={saveApp} />
+        </SettingsSection>
+
+        <SettingsSection
+          value="configuration-backup"
+          title="Configuration backup"
+          subtitle="Import or export your complete setup"
+        >
+          <ConfigurationBackupDialogs app={app} onImport={saveApp} />
         </SettingsSection>
 
         <SettingsSection
@@ -617,6 +634,67 @@ export function SettingsView() {
         </SettingsSection>
 
         <SettingsSection
+          value="hashtags"
+          title="Hashtags"
+          subtitle={`${String(app.settings.hashtagPolicy.generatedCount)} generated · ${String(app.settings.hashtagPolicy.customHashtags.length)} custom`}
+        >
+          <FieldGroup>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label htmlFor="generated-hashtag-count">Generated hashtags</Label>
+                <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
+                  Choose how many relevant hashtags each new post receives. Zero disables generated
+                  hashtags.
+                </p>
+              </div>
+              <output
+                htmlFor="generated-hashtag-count"
+                className="grid size-8 shrink-0 place-items-center rounded-lg border border-field bg-soft font-utility text-xs font-medium text-primary"
+              >
+                {String(app.settings.hashtagPolicy.generatedCount)}
+              </output>
+            </div>
+            <Input
+              id="generated-hashtag-count"
+              aria-label="Generated hashtag count"
+              type="range"
+              min="0"
+              max="10"
+              step="1"
+              value={app.settings.hashtagPolicy.generatedCount}
+              className="min-h-8 cursor-pointer border-0 bg-transparent px-0 py-0 accent-primary focus:outline-offset-2"
+              onChange={(event) =>
+                void saveHashtagPolicy({
+                  ...app.settings.hashtagPolicy,
+                  generatedCount: Number(event.target.value),
+                })
+              }
+            />
+            <div className="flex justify-between font-utility text-[9px] text-muted">
+              <span>0</span>
+              <span>10</span>
+            </div>
+          </FieldGroup>
+          <Field label="Custom hashtags">
+            <Input
+              aria-label="Custom hashtags"
+              value={customHashtagDraft}
+              placeholder="#SoftwareEngineering #ThoughtLeadership"
+              onChange={(event) => setCustomHashtagDraft(event.target.value)}
+              onBlur={() => {
+                const customHashtags = normalizeCustomHashtags(customHashtagDraft);
+                setCustomHashtagDraft(customHashtags.join(' '));
+                void saveHashtagPolicy({ ...app.settings.hashtagPolicy, customHashtags });
+              }}
+            />
+            <p className="text-[10.5px] leading-relaxed text-muted">
+              Add up to 10, separated by spaces or commas. These are appended to every generated or
+              refined post and do not count toward the generated amount.
+            </p>
+          </Field>
+        </SettingsSection>
+
+        <SettingsSection
           value="ideas"
           title="Ideas & research"
           subtitle={`${String(app.profile.topics.length)} topics · public research ${app.settings.publicResearchEnabled ? 'enabled' : 'optional'}`}
@@ -770,7 +848,8 @@ export function SettingsView() {
           subtitle={`${String(layoutRecipes.filter((recipe) => recipe.status === 'active').length)} active · saved on this device`}
         >
           <p className="text-[10.5px] leading-relaxed text-muted">
-            Structural recipes stay in this Chrome profile and are excluded from exports.
+            Structural recipes stay in this Chrome profile and are included in configuration
+            backups, but not writing data archives.
           </p>
           {layoutRecipes.length > 0 ? (
             <div className="overflow-hidden rounded-lg border border-rule bg-surface">
@@ -1172,4 +1251,14 @@ function lengthLabel(value: WritingProfile['length']): string {
 }
 function lengthWordCount(value: WritingProfile['length']): string {
   return LENGTH_OPTIONS.find((option) => option.value === value)?.wordCount ?? '';
+}
+
+function normalizeCustomHashtags(value: string): string[] {
+  const hashtags = new Map<string, string>();
+  for (const match of value.match(/[\p{L}\p{M}\p{N}_]+/gu) ?? []) {
+    const hashtag = `#${Array.from(match).slice(0, 48).join('')}`;
+    hashtags.set(hashtag.toLocaleLowerCase(), hashtag);
+    if (hashtags.size === 10) break;
+  }
+  return [...hashtags.values()];
 }

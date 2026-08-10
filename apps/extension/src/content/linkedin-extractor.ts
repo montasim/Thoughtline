@@ -102,6 +102,8 @@ const LINK_PREVIEW_SELECTORS = [
   '.feed-shared-external-video__meta',
 ] as const;
 const PERMALINK_SELECTORS = ['a[href*="/feed/update/"]', 'a[href*="/posts/"]'] as const;
+const EXPANDABLE_TEXT_CONTROL_SELECTOR =
+  'button[aria-hidden="true"][data-testid="expandable-text-button"],button[aria-hidden="true"][data-test-id="expandable-text-button"]';
 
 interface ClassifiedComment {
   root: Element;
@@ -275,6 +277,16 @@ function isCommentTarget(
   }
   const knownComment = target.closest(COMMENT_SELECTORS.join(','));
   if (knownComment && knownComment !== postRoot && postRoot.contains(knownComment)) return true;
+  const ownedPostText = topLevelCandidates(postRoot, POST_TEXT_SELECTORS, COMMENT_SELECTORS);
+  if (
+    ownedPostText.some((candidate) =>
+      candidate === target || candidate.contains(target)
+        ? isExplicitPostCommentary(candidate) || ownedPostText.length === 1
+        : false,
+    )
+  ) {
+    return false;
+  }
   if (
     recipes
       .filter((recipe) => recipe.kind === 'comment')
@@ -305,7 +317,12 @@ function findUniquePostRoot(
       matchingAncestors.push(current);
     current = current.parentElement;
   }
-  const builtIn = matchingAncestors.at(-1) ?? findStructuredPostRoot(target);
+  const builtIn =
+    matchingAncestors.find((candidate) =>
+      candidate.matches('[role="listitem"][componentkey^="expanded"]'),
+    ) ??
+    matchingAncestors.at(-1) ??
+    findStructuredPostRoot(target);
   if (ephemeralBinding) {
     const ephemeralRoot = ephemeralBinding.boundary;
     if (builtIn && !builtIn.contains(ephemeralRoot) && !ephemeralRoot.contains(builtIn)) {
@@ -517,10 +534,10 @@ function extractComment(
 
 function extractEphemeralAuthor(binding: EphemeralLayoutBinding): string {
   if (!binding.author) return '';
-  const link = binding.author.matches('a[href*="/in/"]')
+  const link = binding.author.matches(ACTOR_PROFILE_LINK_SELECTOR)
     ? binding.author
-    : (binding.author.closest('a[href*="/in/"]') ??
-      binding.author.querySelector('a[href*="/in/"]'));
+    : (binding.author.closest(ACTOR_PROFILE_LINK_SELECTOR) ??
+      binding.author.querySelector(ACTOR_PROFILE_LINK_SELECTOR));
   return link instanceof HTMLAnchorElement ? extractProfileNameFromLink(link) : '';
 }
 
@@ -591,6 +608,11 @@ function collectCommentText(root: Element, selectors: readonly string[]): string
 }
 
 function extractPostAuthor(root: Element): string {
+  for (const control of root.querySelectorAll('[aria-label]')) {
+    const label = normalizeUntrustedText(control.getAttribute('aria-label') ?? '');
+    const match = label.match(/^(?:Open control menu|Hide post) for post by (.+)$/iu);
+    if (match?.[1]) return cleanProfileName(match[1]);
+  }
   const namedAuthor = collectFirstText(root, POST_AUTHOR_SELECTORS, COMMENT_SELECTORS);
   if (namedAuthor) return namedAuthor;
 
@@ -609,6 +631,11 @@ function extractPostAuthor(root: Element): string {
     }
   }
   return '';
+}
+
+function isExplicitPostCommentary(element: Element): boolean {
+  const commentary = element.closest('[id^="translatable-commentary-"]');
+  return commentary?.id.includes('contentUrnCommentUrn=null') ?? false;
 }
 
 function extractProfileName(root: Element, commentOnly: boolean): string {
@@ -642,8 +669,10 @@ function extractProfileNameFromLink(link: HTMLAnchorElement): string {
 
 function profileNameFromLabel(label: string): string {
   const normalized = normalizeUntrustedText(label);
-  const profileLabel = normalized.match(/^View (.+?)[\u2019']s profile$/i);
+  const profileLabel = normalized.match(/^View (.+?)[\u2019']s profile(?:,\s*open to work)?$/iu);
   if (profileLabel?.[1]) return cleanProfileName(profileLabel[1]);
+  const organizationLabel = normalized.match(/^View (?:company|school|showcase):\s*(.+)$/iu);
+  if (organizationLabel?.[1]) return cleanProfileName(organizationLabel[1]);
   if (/\bVerified Profile\b|\b(?:1st|2nd|3rd)\s*$/i.test(normalized)) {
     return cleanProfileName(normalized);
   }
@@ -652,7 +681,9 @@ function profileNameFromLabel(label: string): string {
 
 function cleanProfileName(value: string): string {
   return normalizeUntrustedText(value)
+    .replace(/,?\s+Open to work(?=\s|$)/giu, '')
     .replace(/\s+Verified Profile(?=\s|$)/gi, '')
+    .replace(/\s+Premium Profile(?=\s|$)/gi, '')
     .replace(/\s*[\u2022\u00b7]?\s*(?:1st|2nd|3rd)\s*$/i, '')
     .trim();
 }
@@ -707,6 +738,12 @@ function topLevelCandidates(
 function visibleText(element: Element): string {
   const htmlElement = element as HTMLElement;
   if (!isElementVisible(htmlElement)) return '';
+  if (element.querySelector(EXPANDABLE_TEXT_CONTROL_SELECTOR)) {
+    const clone = element.cloneNode(true) as Element;
+    clone.querySelectorAll(EXPANDABLE_TEXT_CONTROL_SELECTOR).forEach((control) => control.remove());
+    clone.querySelectorAll('br').forEach((lineBreak) => lineBreak.replaceWith('\n'));
+    return clone.textContent ?? '';
+  }
   return htmlElement.innerText || htmlElement.textContent || '';
 }
 
@@ -787,27 +824,29 @@ function commentInlineStart(root: Element): number | null {
 }
 
 function findPermalink(root: Element, locationHref: string): string | undefined {
+  const postUrn = findPostUrn(root);
+  if (postUrn) {
+    return canonicalLinkedInUrl(`https://www.linkedin.com/feed/update/${postUrn}/`);
+  }
   for (const selector of PERMALINK_SELECTORS) {
     for (const link of root.querySelectorAll<HTMLAnchorElement>(selector)) {
       const candidate = canonicalLinkedInUrl(link.href);
       if (candidate) return candidate;
     }
   }
-  const activityUrn = findActivityUrn(root);
-  if (activityUrn) {
-    return canonicalLinkedInUrl(`https://www.linkedin.com/feed/update/${activityUrn}/`);
-  }
   if (detectSurface(locationHref) === 'post-detail') return canonicalLinkedInUrl(locationHref);
   return undefined;
 }
 
-function findActivityUrn(root: Element): string | undefined {
+function findPostUrn(root: Element): string | undefined {
   for (const candidate of [root, ...root.querySelectorAll('*')]) {
     for (const attribute of candidate.attributes) {
       let value = attribute.value;
       for (let pass = 0; pass < 3; pass += 1) {
-        const match = value.match(/urn:li:activity:\d+/u);
+        const match = value.match(/urn:li:(?:activity|share|ugcPost):\d+/u);
         if (match?.[0]) return match[0];
+        const shareId = value.match(/shareId=(\d+)/u)?.[1];
+        if (shareId) return `urn:li:share:${shareId}`;
         try {
           const decoded = decodeURIComponent(value);
           if (decoded === value) break;

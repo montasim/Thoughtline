@@ -13,7 +13,7 @@ import { visualAppData, visualSession } from '../fixtures/app-data';
 import { approvedPrototype } from '../helpers/prototype-reference';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const extensionPath = path.join(root, '.output/chrome-mv3');
+const extensionPath = path.join(root, '.output');
 let context: BrowserContext | undefined;
 let page: Page;
 let sidePanelUrl: string;
@@ -136,6 +136,33 @@ test('starts every tab at the top of its own scroll region', async () => {
   expect(await page.locator('[data-sidepanel-scroll]').evaluate((region) => region.scrollTop)).toBe(
     0,
   );
+});
+
+test('keeps the History navigation fixed while its content scrolls', async () => {
+  await page.setViewportSize({ width: 400, height: 560 });
+  try {
+    await seed('history');
+    const navigation = page.getByRole('navigation', { name: 'Main navigation' });
+    const scrollRegion = page.locator('[data-sidepanel-scroll]');
+    const before = await navigation.boundingBox();
+
+    expect(before).not.toBeNull();
+    expect(await scrollRegion.evaluate((region) => region.scrollHeight > region.clientHeight)).toBe(
+      true,
+    );
+
+    await scrollRegion.hover();
+    await page.mouse.wheel(0, 10_000);
+    await page.mouse.wheel(0, 10_000);
+
+    await expect
+      .poll(async () => scrollRegion.evaluate((region) => region.scrollTop))
+      .toBeGreaterThan(0);
+    expect(await navigation.boundingBox()).toEqual(before);
+    expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0)).toBe(0);
+  } finally {
+    await page.setViewportSize({ width: 400, height: 820 });
+  }
 });
 
 for (const [tab, screenshot] of [

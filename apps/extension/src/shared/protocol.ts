@@ -13,6 +13,10 @@ export const runtimeRequestSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('analysis:get-state') }),
   z.object({ type: z.literal('analysis:clear-state') }),
   z.object({
+    type: z.literal('calibration:save-discovered-layout'),
+    recipe: calibratedLayoutRecipeSchema,
+  }),
+  z.object({
     type: z.literal('content:extract-selected-post'),
     requestId: uuidSchema,
     intent: z.enum(['reply', 'refine']).default('reply'),

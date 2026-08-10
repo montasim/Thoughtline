@@ -260,6 +260,11 @@ async function handleRequest(request: RuntimeRequest): Promise<RuntimeResponse> 
         analysis: { status: 'idle' },
       }));
       return { ok: true };
+    case 'calibration:save-discovered-layout':
+      if (request.recipe.validationCount >= 2 && !chrome.extension.inIncognitoContext) {
+        await storageRepository.saveDiscoveredLayoutRecipe(request.recipe);
+      }
+      return { ok: true };
     case 'content:extract-selected-post':
     case 'content:capture-calibration':
     case 'content:validate-calibration':

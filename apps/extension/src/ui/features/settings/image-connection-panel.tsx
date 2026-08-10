@@ -1,4 +1,4 @@
-import { Eye, EyeOff, ExternalLink, ImagePlus } from 'lucide-react';
+import { Eye, EyeOff, ImagePlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toAppError } from '../../../application/errors';
 import { imageModelRegistry } from '../../../application/image-model-registry';
@@ -17,6 +17,7 @@ import { ConfirmDialog } from '../../primitives/alert-dialog';
 import { Button } from '../../primitives/button';
 import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
+import { CredentialSetupGuide } from './credential-setup-guide';
 
 export function ImageConnectionPanel() {
   const [accountId, setAccountId] = useState('');
@@ -119,6 +120,18 @@ export function ImageConnectionPanel() {
                 The writing result still works without this connection.
               </p>
             </div>
+            <CredentialSetupGuide
+              title="Get your Cloudflare Account ID and token"
+              href="https://dash.cloudflare.com/?to=%2F%3Aaccount%2Fai%2Fworkers-ai"
+              actionLabel="Open Workers AI"
+              steps={[
+                'Sign in to Cloudflare and choose the account Thoughtline should use.',
+                'On the Workers AI page, choose Use REST API.',
+                'Choose Create a Workers AI API Token, review the template, create it, and copy the token.',
+                'Copy the Account ID shown in the same REST API setup screen, then paste both values below.',
+              ]}
+              note="Creating a custom token instead? Give it both Workers AI Read and Workers AI Edit permissions."
+            />
             <FieldGroup>
               <Label htmlFor="cloudflare-account-id">Cloudflare Account ID</Label>
               <div className="relative">
@@ -183,15 +196,6 @@ export function ImageConnectionPanel() {
               Model: <code>{imageModelRegistry.cloudflare.model}</code>. Credentials receive the
               same device-bound encryption as the writing-provider keys.
             </p>
-            <a
-              className="inline-flex items-center gap-1 text-[10.5px] text-proof underline"
-              href="https://developers.cloudflare.com/workers-ai/get-started/rest-api/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Find the Account ID and create a token
-              <ExternalLink className="size-3" />
-            </a>
             {status ? (
               <p
                 role="status"

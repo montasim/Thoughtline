@@ -30,11 +30,11 @@ export function AppHeader({
         <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] border border-rule bg-surface">
           <ThoughtlineMark />
         </span>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col justify-center gap-px">
           <h1 className="truncate font-display text-[18px] font-[680] leading-[1.15] tracking-[-0.015em] text-ink">
             Thoughtline
           </h1>
-          <p className="mt-1 truncate font-body text-[11px] leading-[1.2] text-muted">
+          <p className="truncate font-body text-[11px] leading-[1.2] text-muted">
             {savedLabel ?? (setup ? 'Private setup' : 'Find the thought. Shape the words.')}
           </p>
         </div>

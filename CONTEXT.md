@@ -144,6 +144,10 @@ _Avoid_: Model fine-tuning, hidden profile, permanent trait
 User-approved writing guidance created from the user's own samples or edited manually and applied to later drafting requests.
 _Avoid_: Raw writing samples, Learned Writing Preference, provider training
 
+**Hashtag Policy**:
+The saved writing preference that chooses zero to ten generated, post-relevant hashtags and an ordered set of Custom Hashtags appended to every Rewrite Draft and Idea post. Custom Hashtags do not count toward the generated quantity and still apply when that quantity is zero; reply drafts are outside this policy.
+_Avoid_: Hashtag suggestion, reply hashtags, automatic tags
+
 **Diagnostic Bundle**:
 A user-inspectable local support report containing extension version, environment, timings, state transitions, and sanitized error codes while structurally excluding content and credentials.
 _Avoid_: Telemetry event, remote log, analytics payload

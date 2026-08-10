@@ -24,6 +24,7 @@ describe('Chrome storage repository', () => {
     delete legacy.settings.contextRefinementEnabled;
     delete legacy.settings.retainRefinementSourceLink;
     delete legacy.settings.requireExperienceConfirmation;
+    delete legacy.settings.hashtagPolicy;
     memory.local.set('thoughtline.app-data', legacy);
 
     const repository = new ChromeStorageRepository();
@@ -33,6 +34,7 @@ describe('Chrome storage repository', () => {
       contextRefinementEnabled: true,
       retainRefinementSourceLink: true,
       requireExperienceConfirmation: true,
+      hashtagPolicy: { generatedCount: 5, customHashtags: [] },
     });
   });
 
@@ -88,6 +90,18 @@ describe('Chrome storage repository', () => {
     await expect(
       repository.saveLayoutRecipe({ ...recipe(0), validationCount: 1 }),
     ).rejects.toMatchObject({ code: 'storage-failed' });
+  });
+
+  it('deduplicates automatically discovered layouts by structural recipe', async () => {
+    const repository = new ChromeStorageRepository();
+    const first = recipe(0);
+    const duplicate = { ...recipe(1), validationCount: 3 };
+
+    await repository.saveDiscoveredLayoutRecipe(first);
+    const saved = await repository.saveDiscoveredLayoutRecipe(duplicate);
+
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.id).toBe(first.id);
   });
 
   it('evicts only the oldest quarantined recipe at the 32-recipe limit', async () => {

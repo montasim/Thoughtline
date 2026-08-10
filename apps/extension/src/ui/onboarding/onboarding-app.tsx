@@ -9,6 +9,7 @@ import {
 import { sendRuntimeMessage } from '../../shared/protocol';
 import { AppHeader } from '../components/brand';
 import { ApiKeysPanel } from '../features/settings/api-keys-panel';
+import { ImportConfigurationDialog } from '../features/settings/archive-dialogs';
 import { useForegroundJob } from '../hooks/use-foreground-job';
 import { Button } from '../primitives/button';
 import { Card } from '../primitives/card';
@@ -88,6 +89,17 @@ export function OnboardingApp() {
     await saveApp({ ...app, profile: draftProfile });
   };
 
+  const importConfiguration = async (next: typeof app) => {
+    await saveApp(next);
+    setDraftProfile(structuredClone(next.profile));
+    const [linkedIn, providers] = await Promise.all([
+      hasLinkedInPermission(),
+      hasProviderPermissions(),
+    ]);
+    setLinkedInAllowed(linkedIn);
+    setProvidersAllowed(providers);
+  };
+
   const createProfileSuggestions = () => {
     if (!ownershipConfirmed || !profileFile) return;
     void profileJob.run(async (signal) => {
@@ -144,6 +156,19 @@ export function OnboardingApp() {
           </nav>
 
           <main className="min-w-0">
+            <Card className="mb-4 flex flex-wrap items-center justify-between gap-3 p-3">
+              <div className="min-w-0 flex-1">
+                <strong className="text-xs">Already configured Thoughtline?</strong>
+                <p className="mt-1 text-[10.5px] leading-relaxed text-muted">
+                  Restore settings, connections, profile, and preferences from a configuration JSON.
+                </p>
+              </div>
+              <ImportConfigurationDialog
+                app={app}
+                onImport={importConfiguration}
+                triggerLabel="Import configuration"
+              />
+            </Card>
             {step === 1 ? (
               <SetupPanel title="You stay in control">
                 <p className="text-[13px] leading-[1.58] text-muted">

@@ -7,7 +7,7 @@ import type { AppData, SessionState } from '../../src/domain/schemas';
 import { visualAppData, visualSession } from '../fixtures/app-data';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const extensionPath = path.join(root, '.output/chrome-mv3');
+const extensionPath = path.join(root, '.output');
 let context: BrowserContext | undefined;
 let page: Page;
 let testExtensionPath: string | undefined;
