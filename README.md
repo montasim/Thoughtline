@@ -13,10 +13,11 @@ Thoughtline is a user-controlled Chrome side-panel extension for understanding a
 
 ## Current release highlights
 
-- Added exact LinkedIn comment and nested-reply targeting across feed, notification, and post-detail layouts.
-- Added visible target author and excerpt confirmation before copying a generated reply.
-- Added guarded recovery for modern repeated comment wrappers and device-local layout calibration.
-- Kept comment replies focused on the selected target through one provider operation, avoiding duplicate fallback requests.
+- Added validated configuration export and import in onboarding and Settings so a complete setup can move to a fresh installation.
+- Added an explicit **Include secrets** option for API keys, tokens, and account IDs; secrets remain excluded by default.
+- Added a hashtag policy with 0–10 generated tags and up to 10 saved custom tags for every generated or refined post.
+- Added provider-specific setup guides with direct links for Gemini, Groq, and optional Cloudflare Workers AI credentials.
+- Hardened LinkedIn comment and nested-reply extraction with guarded, device-local layout recovery.
 
 ## Product tour
 
@@ -41,7 +42,10 @@ Writing tools often replace the writer's judgment, detach a reply from its actua
 - Build an editable LinkedIn post from a sourced idea or a real experience supplied by the user.
 - Optionally create, preview, refine, regenerate, and download a landscape editorial illustration for a profile-grounded Refine result through Cloudflare Workers AI.
 - Search, filter, edit, revise, delete, clear, retain, export, and import Reply, Refine, and Idea history.
+- Export a validated configuration JSON containing settings, permissions, profile, preferences, History, provider status, and calibrated layouts; import it during onboarding or later in Settings.
+- Keep credentials out of configuration backups by default, or explicitly include Gemini, Groq, and Cloudflare credentials when moving a complete setup.
 - Configure writing language, length, tone, custom instructions, writing samples, and a reviewable style guide.
+- Choose 0–10 generated hashtags and save up to 10 custom hashtags that are appended to every generated or refined post.
 - Derive an editable profile suggestion locally from the user's own LinkedIn PDF export; the raw PDF is not retained.
 - Learn inspectable writing preferences only from explicit ratings, selected directions, and substantial edits.
 - Use Gemini first and Groq once as automatic fallback through one provider port. Both valid API keys are required.
@@ -64,19 +68,35 @@ Thoughtline is distributed as a GitHub release rather than through the Chrome We
 6. Select **Load unpacked**, then choose the extracted folder containing `manifest.json`.
 7. Open Thoughtline from the toolbar and complete setup.
 
-To update a sideloaded installation, download and verify the next release, replace the extracted folder, and select **Reload** on `chrome://extensions`. Export a Data Archive first when moving the installation to another Chrome profile or device.
+To update a sideloaded installation, download and verify the next release, replace the extracted folder, and select **Reload** on `chrome://extensions`. Before uninstalling or moving to another Chrome profile or device, export a configuration backup from Settings. Keep **Include secrets** off unless the JSON will be stored as carefully as the credentials it contains.
 
 ## First-time setup
 
-Thoughtline asks only when a capability needs permission:
+If you already have a Thoughtline configuration JSON, choose **Import configuration** at the top of onboarding, review the file, and apply it before completing setup manually.
+
+For a new setup, Thoughtline asks only when a capability needs permission:
 
 1. Review and accept direct AI processing consent.
 2. Allow access to LinkedIn pages. This is page permission, not LinkedIn OAuth or an account connection.
-3. Enter and validate both a [Gemini API key](https://aistudio.google.com/app/apikey) and a [Groq API key](https://console.groq.com/keys).
+3. Follow the built-in setup guides to create and validate both a [Gemini API key](https://aistudio.google.com/apikey) and a [Groq API key](https://console.groq.com/keys).
 4. Add a role, topics, and audience. PDF profile import is optional.
 5. Optionally enable public research sources as you use Idea search.
 
+The Connections panel also includes a direct, step-by-step guide for the optional Cloudflare Account ID and Workers AI API token used by image generation.
+
 Provider keys are encrypted at rest with AES-256-GCM and a non-exportable device key before being placed in Chrome extension storage. They are excluded from data archives, diagnostics, History, and configuration backups unless the user explicitly selects **Include secrets**. A secret-inclusive configuration backup is readable JSON and must be stored securely. Encryption at rest is not a defense against a compromised browser or operating system.
+
+## Back up and restore a setup
+
+1. Open **Settings → Configuration backup** and choose **Export**.
+2. Leave **Include secrets** unchecked for a backup without credentials. Select it only when the backup must also carry Gemini, Groq, and Cloudflare credentials.
+3. On a fresh installation, choose **Import configuration** during onboarding or from the same Settings section.
+4. Select the JSON, review its date, History count, and secret status, then choose **Use this configuration**.
+5. Approve any imported Chrome permissions that are still declared and available in the installed extension.
+
+The complete file is validated before the current configuration changes. Imported values replace settings, profile, preferences, History, and calibrated layouts. When the file omits secrets, credentials already stored on the device remain unchanged. Chrome may decline some imported permissions; Thoughtline still imports the configuration and reports that those permissions need review.
+
+The separate **Writing data archive** under **History & storage** can create an encrypted, mergeable archive—or an explicitly readable JSON export—of writing data. It excludes provider credentials, permissions, consent, and transient jobs.
 
 ## Reply workflow
 
@@ -92,8 +112,9 @@ For a post target, visible rendered threads inside that post are included. For a
 ## Refine workflow
 
 For pasted content, open **Refine**, provide the text, choose a goal, and review the editable result.
-Both pasted-content and context-menu Refine results include 5–10 relevant hashtags in the editable
-post, so the Copy action includes the complete post and hashtag block.
+In **Settings → Hashtags**, choose 0–10 generated hashtags and optionally save up to 10 custom
+hashtags. Custom tags are appended locally to every generated or refined post, even when generated
+hashtags are set to zero. The Copy action includes the complete editable post and hashtag block.
 
 For a rendered LinkedIn post:
 
@@ -172,7 +193,7 @@ pnpm check
 pnpm release:zip
 ```
 
-`pnpm test:e2e` launches the packed Manifest V3 extension in Chromium, checks responsive navigation at 400px and 320px, runs Axe against all five views, and compares production UI screenshots. Unit tests cover extraction boundaries, untrusted envelopes, encrypted credentials, provider fallback, storage migration/recovery/retention, data archives, and feedback behavior. See [apps/extension/tests/TEST-PLAN.md](apps/extension/tests/TEST-PLAN.md) for the approved-prototype contract, real-writer journey matrix, and AI quality gates.
+`pnpm test:e2e` launches the packed Manifest V3 extension in Chromium, checks responsive navigation at 400px and 320px, runs Axe against all five views, and compares production UI screenshots. Unit tests cover extraction boundaries, untrusted envelopes, encrypted credentials, provider fallback, storage migration/recovery/retention, configuration backups, data archives, hashtag policies, and feedback behavior. See [apps/extension/tests/TEST-PLAN.md](apps/extension/tests/TEST-PLAN.md) for the approved-prototype contract, real-writer journey matrix, and AI quality gates.
 
 Husky runs `lint-staged` before commits after the project is installed inside a Git checkout. CI repeats the full static, unit, production-build, browser, accessibility, and visual checks.
 
@@ -229,7 +250,7 @@ The release workflow installs dependencies, runs unit/static/build checks and th
 - [Product and domain context](CONTEXT.md)
 - [Privacy policy](PRIVACY.md)
 - [Security policy](SECURITY.md)
-- [Test plan](tests/TEST-PLAN.md)
+- [Test plan](apps/extension/tests/TEST-PLAN.md)
 - [Architecture decisions](docs/adr)
 - [Prototype history](prototypes/README.md)
 - [Contribution guide](CONTRIBUTING.md)

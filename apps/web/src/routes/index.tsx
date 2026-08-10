@@ -54,7 +54,12 @@ const faqs = [
   {
     question: 'What do I need to use it?',
     answer:
-      'Chrome 120 or later, LinkedIn page permission, and your own valid Gemini and Groq API keys for primary generation and fallback.',
+      'Chrome 120 or later, LinkedIn page permission, and your own valid Gemini and Groq API keys for primary generation and fallback. Built-in setup guides link directly to each provider’s credential page.',
+  },
+  {
+    question: 'Can I restore my setup after reinstalling?',
+    answer:
+      'Yes. Export a configuration JSON from Settings, then import it during onboarding or later in Settings. API keys and other secrets stay out by default; including them is an explicit choice and produces a readable file that must be stored securely.',
   },
   {
     question: 'Is it open source?',
@@ -180,6 +185,14 @@ function Home() {
                     Find promising ideas across public sources, with a link back to every original
                     item.
                   </Feature>
+                  <Feature title="Choose the hashtag finish">
+                    Set 0–10 generated hashtags and save custom tags that follow every generated or
+                    refined post.
+                  </Feature>
+                  <Feature title="Carry your setup forward">
+                    Export one validated configuration file and restore it during onboarding or in
+                    Settings, with secrets included only when you choose.
+                  </Feature>
                   <Feature title="Keep useful work close">
                     Search, edit, revise, and export local history without turning your work into
                     telemetry.
@@ -248,8 +261,8 @@ function Home() {
                   Only the bounded, visible context you choose is prepared for an AI request.
                 </Boundary>
                 <Boundary term="Your history">
-                  Work history stays in Chrome’s local extension storage and can be exported or
-                  cleared.
+                  Work history stays in Chrome’s local extension storage. Export writing data or a
+                  complete setup, import it again, or clear it yourself.
                 </Boundary>
                 <Boundary term="Publishing">
                   Thoughtline never posts, comments, or messages on your behalf.
@@ -285,8 +298,8 @@ function Home() {
                 Developer mode, and choose Load unpacked.
               </InstallStep>
               <InstallStep number="03" title="Complete private setup">
-                Review permissions, connect your own AI provider keys, and describe the voice you
-                want to keep.
+                Import an existing configuration or follow direct provider guides, review
+                permissions, and describe the voice you want to keep.
               </InstallStep>
             </ol>
           </Reveal>
