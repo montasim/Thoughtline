@@ -13,7 +13,8 @@
     "lint": "eslint",
     "format": "prettier --write . && eslint --fix",
     "typecheck": "tsc --noEmit",
-    "check": "tsr generate && prettier --check . && eslint && tsc --noEmit && vite build"
+    "test:deploy-filter": "node --test tests/netlify-build-filter.test.mjs",
+    "check": "tsr generate && prettier --check . && eslint && tsc --noEmit && node --test tests/netlify-build-filter.test.mjs && vite build"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.2.8",
