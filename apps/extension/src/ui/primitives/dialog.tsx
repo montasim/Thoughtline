@@ -1,6 +1,7 @@
 import { Dialog } from 'radix-ui';
-import { X } from 'lucide-react';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import type { ComponentProps, ReactNode } from 'react';
+import { HugeIcon } from '../components/huge-icon';
 import { cn } from '../lib/cn';
 import { Button } from './button';
 
@@ -43,7 +44,7 @@ export function DialogContent({
           </div>
           <Dialog.Close asChild>
             <Button size="icon" aria-label="Close dialog">
-              <X className="size-4" />
+              <HugeIcon icon={Cancel01Icon} className="size-4" />
             </Button>
           </Dialog.Close>
         </header>

@@ -2,6 +2,7 @@ import type { SourceName } from '../domain/schemas';
 
 export const LINKEDIN_ORIGIN = 'https://www.linkedin.com/*';
 export const PROVIDER_ORIGINS = [
+  'https://openrouter.ai/*',
   'https://generativelanguage.googleapis.com/*',
   'https://api.groq.com/*',
 ] as const;

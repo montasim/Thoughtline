@@ -3,7 +3,7 @@ import type {
   DraftingProvider,
   StructuredGenerationRequest,
 } from '../../application/ports/drafting-provider';
-import { modelRegistry } from '../../application/model-registry';
+import type { AiRouting } from '../../domain/schemas';
 import { AppError } from '../../application/errors';
 import {
   fetchWithTimeout,
@@ -29,7 +29,11 @@ const groqModelsSchema = z.object({
 
 export class GroqProvider implements DraftingProvider {
   readonly name = 'groq' as const;
-  readonly model = modelRegistry.groq.model;
+  readonly model: AiRouting['models']['groq'];
+
+  constructor(model: AiRouting['models']['groq'] = 'openai/gpt-oss-120b') {
+    this.model = model;
+  }
 
   async validateConnection(apiKey: string, signal?: AbortSignal): Promise<void> {
     const response = await fetchWithTimeout('https://api.groq.com/openai/v1/models', {

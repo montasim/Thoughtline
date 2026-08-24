@@ -15,8 +15,32 @@ const linkedInUrlSchema = httpsUrlSchema.refine(
 export const isoDateSchema = z.iso.datetime();
 export const uuidSchema = z.uuid();
 
-export const providerNameSchema = z.enum(['gemini', 'groq']);
+export const providerNameSchema = z.enum(['openrouter', 'gemini', 'groq']);
 export type ProviderName = z.infer<typeof providerNameSchema>;
+
+export const openRouterModelSchema = z.enum([
+  'google/gemma-4-31b-it:free',
+  'z-ai/glm-5.2:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+]);
+export const geminiModelSchema = z.enum(['gemini-3.5-flash', 'gemini-3.5-flash-lite']);
+export const groqModelSchema = z.enum(['openai/gpt-oss-120b', 'openai/gpt-oss-20b']);
+
+export const aiRoutingSchema = z.object({
+  models: z
+    .object({
+      openrouter: openRouterModelSchema,
+      gemini: geminiModelSchema,
+      groq: groqModelSchema,
+    })
+    .default({
+      openrouter: 'google/gemma-4-31b-it:free',
+      gemini: 'gemini-3.5-flash',
+      groq: 'openai/gpt-oss-120b',
+    }),
+  zeroCostConfirmed: z.boolean().default(false),
+});
+export type AiRouting = z.infer<typeof aiRoutingSchema>;
 
 export const providerValidationSchema = z.object({
   state: z.enum(['missing', 'unvalidated', 'valid', 'invalid']),
@@ -109,8 +133,17 @@ export const appSettingsSchema = z.object({
   requireExperienceConfirmation: z.boolean().default(true),
   hashtagPolicy: hashtagPolicySchema.default({ generatedCount: 5, customHashtags: [] }),
   providerValidation: z.object({
+    openrouter: providerValidationSchema.default({ state: 'missing', credentialVersion: 0 }),
     gemini: providerValidationSchema,
     groq: providerValidationSchema,
+  }),
+  aiRouting: aiRoutingSchema.default({
+    models: {
+      openrouter: 'google/gemma-4-31b-it:free',
+      gemini: 'gemini-3.5-flash',
+      groq: 'openai/gpt-oss-120b',
+    },
+    zeroCostConfirmed: false,
   }),
 });
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -312,10 +345,12 @@ const historyBaseSchema = z.object({
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
   provider: providerNameSchema,
+  model: z.string().trim().min(1).max(160).optional(),
 });
 
 export const replyHistorySchema = historyBaseSchema.extend({
   type: z.literal('reply'),
+  mode: z.enum(['manual', 'context']).optional(),
   title: boundedText(120).optional(),
   source: z.object({
     author: boundedText(160),
@@ -324,6 +359,7 @@ export const replyHistorySchema = historyBaseSchema.extend({
     targetType: postTargetTypeSchema.optional(),
     targetAuthor: boundedText(160).optional(),
     targetExcerpt: boundedText(800),
+    manualText: boundedText(12_000).optional(),
     wordCount: z.number().int().positive().max(20_000).optional(),
   }),
   summary: bilingualSummarySchema,
@@ -389,7 +425,7 @@ export const workHistoryRecordSchema = z.discriminatedUnion('type', [
 export type WorkHistoryRecord = z.infer<typeof workHistoryRecordSchema>;
 
 export const appDataSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   settings: appSettingsSchema,
   profile: writingProfileSchema,
   learnedPreferences: learnedPreferencesSchema,
@@ -454,6 +490,10 @@ export const generateComposeSchema = z.object({
   customGoal: z.string().max(600),
 });
 
+export const replyComposeSchema = z.object({
+  postText: z.string().max(12_000),
+});
+
 export const refinementStageSchema = z.enum([
   'checking-setup',
   'extracting',
@@ -516,6 +556,7 @@ export const sessionStateSchema = z.object({
   analysis: analysisStateSchema,
   calibration: calibrationRequestStateSchema.default({ status: 'idle' }),
   refinement: refinementStateSchema.default({ status: 'idle' }),
+  replyCompose: replyComposeSchema.default({ postText: '' }),
   generateCompose: generateComposeSchema,
   ideaView: z.enum(['search', 'results', 'experience', 'post']),
   ideaSession: ideaSessionSchema.optional(),
@@ -564,7 +605,7 @@ export const schedulePreviewSchema = z
 export type SchedulePreview = z.infer<typeof schedulePreviewSchema>;
 
 export const defaultAppData: AppData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   settings: {
     consent: { accepted: false, version: 1 },
     onboardingComplete: false,
@@ -576,8 +617,17 @@ export const defaultAppData: AppData = {
     requireExperienceConfirmation: true,
     hashtagPolicy: { generatedCount: 5, customHashtags: [] },
     providerValidation: {
+      openrouter: { state: 'missing', credentialVersion: 0 },
       gemini: { state: 'missing', credentialVersion: 0 },
       groq: { state: 'missing', credentialVersion: 0 },
+    },
+    aiRouting: {
+      models: {
+        openrouter: 'google/gemma-4-31b-it:free',
+        gemini: 'gemini-3.5-flash',
+        groq: 'openai/gpt-oss-120b',
+      },
+      zeroCostConfirmed: false,
     },
   },
   profile: {
@@ -609,6 +659,7 @@ export const defaultSessionState: SessionState = {
   analysis: { status: 'idle' },
   calibration: { status: 'idle' },
   refinement: { status: 'idle' },
+  replyCompose: { postText: '' },
   generateCompose: { original: '', goal: 'clearer', customGoal: '' },
   ideaView: 'search',
   experienceLesson: '',
@@ -624,7 +675,16 @@ export function isProfileComplete(profile: WritingProfile): boolean {
 
 export function isProviderReady(settings: AppSettings): boolean {
   return (
+    settings.providerValidation.openrouter.state === 'valid' &&
     settings.providerValidation.gemini.state === 'valid' &&
-    settings.providerValidation.groq.state === 'valid'
+    settings.providerValidation.groq.state === 'valid' &&
+    settings.aiRouting.zeroCostConfirmed
   );
+}
+
+export function parseAppDataWithMigration(value: unknown): AppData {
+  if (value && typeof value === 'object' && 'schemaVersion' in value && value.schemaVersion === 1) {
+    return appDataSchema.parse({ ...value, schemaVersion: 2 });
+  }
+  return appDataSchema.parse(value);
 }

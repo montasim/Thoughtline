@@ -1,15 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from 'react';
 import {
-  Check,
-  Download,
-  ExternalLink,
-  Eye,
-  Image as ImageIcon,
-  ImagePlus,
-  LoaderCircle,
-  RefreshCw,
-  ShieldCheck,
-} from 'lucide-react';
+  Download04Icon,
+  Image01Icon,
+  ImageAdd01Icon,
+  LinkSquare01Icon,
+  Loading03Icon,
+  RefreshIcon,
+  ShieldCheckIcon,
+  Tick02Icon,
+  ViewIcon,
+} from '@hugeicons/core-free-icons';
 import { AppError } from '../../../application/errors';
 import { feedbackAfterEdit, feedbackAfterRating } from '../../../application/feedback';
 import {
@@ -53,10 +53,12 @@ import { FieldGroup, Label } from '../../primitives/label';
 import { SelectContent, SelectItem, SelectRoot, SelectTrigger } from '../../primitives/select';
 import { SwitchControl } from '../../primitives/switch';
 import { Textarea } from '../../primitives/textarea';
+import { HugeIcon } from '../../components/huge-icon';
 import {
   copyText,
   EditorActions,
   EmptyState,
+  ModelProvenance,
   PageHeading,
   ProgressState,
   StatusBadge,
@@ -233,7 +235,7 @@ export function GenerateView() {
             ) {
               throw new AppError(
                 'setup-incomplete',
-                'Complete your writing profile and validate both AI services before refining a post.',
+                'Complete your writing profile and validate all three AI services before refining a post.',
               );
             }
             if (!(await hasLinkedInPermission())) {
@@ -242,7 +244,7 @@ export function GenerateView() {
             if (!(await hasProviderPermissions())) {
               throw new AppError(
                 'permission-missing',
-                'Allow Gemini and Groq connections in Settings.',
+                'Allow OpenRouter, Gemini, and Groq connections in Settings.',
               );
             }
             signal.throwIfAborted();
@@ -435,6 +437,7 @@ export function GenerateView() {
                   previous,
                   completed.record.currentText,
                   completed.record.provider,
+                  completed.record.model,
                 ) as RewriteHistoryRecord),
                 mode: completed.record.mode,
                 source: completed.record.source,
@@ -680,9 +683,14 @@ export function GenerateView() {
               {job.error}
             </p>
           ) : null}
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex justify-end gap-2">
+            {job.running ? (
+              <Button variant="secondary" onClick={job.cancel}>
+                Cancel
+              </Button>
+            ) : null}
             <Button variant="primary" disabled={job.running} onClick={generate}>
-              {job.running ? 'Refining…' : 'Refine content'}
+              {job.running ? 'Trying free providers…' : 'Refine content'}
             </Button>
           </div>
         </Card>
@@ -706,7 +714,12 @@ export function GenerateView() {
         structuredClone(app.settings.hashtagPolicy),
         signal,
       );
-      const next = addRevision(record, completed.record.currentText, completed.record.provider);
+      const next = addRevision(
+        record,
+        completed.record.currentText,
+        completed.record.provider,
+        completed.record.model,
+      );
       if (next.type === 'rewrite') await persistRecord(next);
       return next;
     });
@@ -809,7 +822,7 @@ function ContextRefinementReview({
                 </p>
               </div>
               <span className="inline-flex items-center gap-1 text-[10px] font-[650] text-proof">
-                <Check className="size-3" /> Confirmed
+                <HugeIcon icon={Tick02Icon} className="size-3" /> Confirmed
               </span>
             </div>
             <p className="mt-3 line-clamp-5 whitespace-pre-wrap text-[11.5px] leading-relaxed">
@@ -924,7 +937,7 @@ function ContextRefinementReview({
             </FieldGroup>
           ) : null}
           <div className="mt-2 flex gap-2 rounded-lg border border-[#a8c6c3] bg-proof-soft p-3 text-[10.5px] leading-relaxed text-proof">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+            <HugeIcon icon={ShieldCheckIcon} className="mt-0.5 size-4 shrink-0" />
             <p>
               The draft may use only experience you confirm. It must add a distinct point of view,
               avoid close phrasing, and never invent a result or role.
@@ -1053,6 +1066,7 @@ function RefinementResult({
           onChange={(event) => draft.change(event.target.value)}
           className="mt-3 min-h-[280px] resize-none overflow-hidden"
         />
+        <ModelProvenance provider={record.provider} model={record.model} />
         <PostIllustrationPanel
           postText={draft.text}
           profile={profile}
@@ -1065,7 +1079,8 @@ function RefinementResult({
               <ul className="space-y-2 text-[10.5px] leading-relaxed text-muted">
                 {record.grounding?.safeguards.map((item) => (
                   <li key={item} className="flex gap-2">
-                    <Check className="mt-0.5 size-3 shrink-0 text-proof" /> {item}
+                    <HugeIcon icon={Tick02Icon} className="mt-0.5 size-3 shrink-0 text-proof" />{' '}
+                    {item}
                   </li>
                 ))}
               </ul>
@@ -1083,7 +1098,7 @@ function RefinementResult({
                   className="inline-flex items-center gap-1 text-[10.5px] text-proof underline"
                 >
                   Open {record.source.author}’s LinkedIn post
-                  <ExternalLink className="size-3" />
+                  <HugeIcon icon={LinkSquare01Icon} className="size-3" />
                 </a>
               ) : (
                 <p className="text-[10.5px] text-muted">Source link unavailable.</p>
@@ -1161,7 +1176,7 @@ export function PostIllustrationPanel({
       <div className="p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <ImagePlus className="size-4 shrink-0 text-primary" />
+            <HugeIcon icon={ImageAdd01Icon} className="size-4 shrink-0 text-primary" />
             <div className="min-w-0">
               <strong
                 id="post-illustration-title"
@@ -1183,9 +1198,9 @@ export function PostIllustrationPanel({
               onClick={() => void generate()}
             >
               {imageJob.running ? (
-                <LoaderCircle className="size-4 animate-spin" />
+                <HugeIcon icon={Loading03Icon} className="size-4 animate-spin" />
               ) : (
-                <ImageIcon className="size-4" />
+                <HugeIcon icon={Image01Icon} className="size-4" />
               )}
               {imageJob.running ? 'Creating…' : 'Generate image'}
             </Button>
@@ -1220,7 +1235,7 @@ export function PostIllustrationPanel({
                 type="button"
                 variant="ghost"
               >
-                <RefreshCw className="size-3" />
+                <HugeIcon icon={RefreshIcon} className="size-3" />
                 Use post prompt
               </Button>
             </div>
@@ -1234,7 +1249,7 @@ export function PostIllustrationPanel({
           aria-live="polite"
         >
           <div className="text-center text-primary">
-            <LoaderCircle className="mx-auto size-5 animate-spin" />
+            <HugeIcon icon={Loading03Icon} className="mx-auto size-5 animate-spin" />
             <p className="mt-2 font-utility text-[9px] uppercase tracking-[0.1em]">
               Composing the visual
             </p>
@@ -1273,7 +1288,7 @@ export function PostIllustrationPanel({
                 title="Preview"
                 onClick={() => setPreviewOpen(true)}
               >
-                <Eye className="size-4" />
+                <HugeIcon icon={ViewIcon} className="size-4" />
               </Button>
               <Button
                 size="icon"
@@ -1282,7 +1297,7 @@ export function PostIllustrationPanel({
                 title="Download"
                 onClick={download}
               >
-                <Download className="size-4" />
+                <HugeIcon icon={Download04Icon} className="size-4" />
               </Button>
               <Button
                 size="icon"
@@ -1293,9 +1308,9 @@ export function PostIllustrationPanel({
                 onClick={() => void generate()}
               >
                 {imageJob.running ? (
-                  <LoaderCircle className="size-4 animate-spin" />
+                  <HugeIcon icon={Loading03Icon} className="size-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="size-4" />
+                  <HugeIcon icon={RefreshIcon} className="size-4" />
                 )}
               </Button>
             </div>
@@ -1345,7 +1360,7 @@ export function PostIllustrationPanel({
                   AI-generated images can contain visual mistakes. Review before sharing.
                 </p>
                 <Button variant="primary" onClick={download}>
-                  <Download className="size-4" />
+                  <HugeIcon icon={Download04Icon} className="size-4" />
                   Download
                 </Button>
               </div>
@@ -1422,6 +1437,7 @@ function ManualRefinementResult({
           onChange={(event) => draft.change(event.target.value)}
           className="mt-3 min-h-[280px] resize-none overflow-hidden"
         />
+        <ModelProvenance provider={record.provider} model={record.model} />
         <PostIllustrationPanel
           postText={draft.text}
           profile={profile}

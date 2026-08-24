@@ -17,13 +17,17 @@ export function getSetupSteps(app: AppData, access: SetupAccess): SetupStep[] {
     ...(!access.linkedIn ? ['Allow LinkedIn page access'] : []),
   ];
   const serviceNeeds = [
-    ...(!access.providers ? ['Allow Gemini and Groq connections'] : []),
+    ...(!access.providers ? ['Allow OpenRouter, Gemini, and Groq connections'] : []),
+    ...(app.settings.providerValidation.openrouter.state !== 'valid'
+      ? ['Validate the OpenRouter API key']
+      : []),
     ...(app.settings.providerValidation.gemini.state !== 'valid'
       ? ['Validate the Gemini API key']
       : []),
     ...(app.settings.providerValidation.groq.state !== 'valid'
       ? ['Validate the Groq API key']
       : []),
+    ...(!app.settings.aiRouting.zeroCostConfirmed ? ['Confirm the zero-cost AI route'] : []),
   ];
   const profileNeeds = [
     ...(!app.profile.role ? ['Add your role'] : []),
@@ -48,7 +52,9 @@ export function getSetupSteps(app: AppData, access: SetupAccess): SetupStep[] {
     {
       label: 'AI services',
       detail:
-        serviceNeeds.length === 0 ? 'Gemini and Groq are connected.' : serviceNeeds.join(' · '),
+        serviceNeeds.length === 0
+          ? 'OpenRouter, Gemini, and Groq are connected.'
+          : serviceNeeds.join(' · '),
       ready: serviceNeeds.length === 0,
     },
     {

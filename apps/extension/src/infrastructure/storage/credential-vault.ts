@@ -7,7 +7,7 @@ const KEY_STORE = 'device-keys';
 const DEVICE_KEY_ID = 'credential-key-v1';
 const CREDENTIALS_KEY = 'thoughtline.provider-credentials';
 const SESSION_CREDENTIALS_KEY = 'thoughtline.session-credentials';
-const credentialNameSchema = z.enum(['gemini', 'groq', 'cloudflare-images']);
+const credentialNameSchema = z.enum(['openrouter', 'gemini', 'groq', 'cloudflare-images']);
 export type CredentialName = z.infer<typeof credentialNameSchema>;
 
 const encryptedCredentialSchema = z.object({
@@ -165,6 +165,7 @@ function fromBase64(value: string): Uint8Array<ArrayBuffer> {
 }
 
 function providerLabel(provider: CredentialName): string {
+  if (provider === 'openrouter') return 'OpenRouter';
   if (provider === 'gemini') return 'Gemini';
   if (provider === 'groq') return 'Groq';
   return 'Cloudflare image';

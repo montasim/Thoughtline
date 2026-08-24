@@ -17,10 +17,14 @@ export function useForegroundJob() {
   const run = useCallback(
     async <T>(
       task: (signal: AbortSignal) => Promise<T>,
-      options: { requiresAiSetup?: boolean } = {},
+      options: {
+        requiresAiSetup?: boolean;
+        onStartError?: (error: AppError) => void | Promise<void>;
+      } = {},
     ): Promise<T | null> => {
       setError(null);
       let claimed = false;
+      let taskStarted = false;
       try {
         if (options.requiresAiSetup !== false) {
           const app = await storageRepository.loadAppData();
@@ -33,7 +37,7 @@ export function useForegroundJob() {
           if (!isProviderReady(app.settings)) {
             throw new AppError(
               'setup-incomplete',
-              'Valid Gemini and Groq API keys are both required. Review Connections in Settings.',
+              'Validate all three AI connections and confirm the zero-cost route in Settings.',
             );
           }
         }
@@ -42,10 +46,12 @@ export function useForegroundJob() {
         const nextController = new AbortController();
         controller.current = nextController;
         setRunning(true);
+        taskStarted = true;
         return await task(nextController.signal);
       } catch (value) {
         const appError = toAppError(value);
         if (appError.code !== 'cancelled') setError(appError.message);
+        if (!taskStarted) await options.onStartError?.(appError);
         return null;
       } finally {
         controller.current = null;

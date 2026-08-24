@@ -9,6 +9,7 @@ import {
   type HashtagPolicy,
   type LearnedPreferences,
   type PostContext,
+  type ProviderName,
   type ReplyDraftLanguage,
   type ReplyHistoryRecord,
   type Revision,
@@ -36,6 +37,7 @@ import { AppError } from './errors';
 import { providerOrchestrator, type ProviderResult } from './provider-orchestrator';
 import {
   ideasEnvelope,
+  manualReplyEnvelope,
   postEnvelope,
   replyEnvelope,
   rewriteEnvelope,
@@ -84,7 +86,67 @@ export async function analyzeReply(
   learned: LearnedPreferences,
   signal?: AbortSignal,
 ): Promise<{ record: ReplyHistoryRecord; usedFallback: boolean }> {
-  const replyLanguage = resolveReplyLanguage(context.responseTarget.text, profile.writingLanguage);
+  return createReplyRecord({
+    responseText: context.responseTarget.text,
+    profile,
+    envelope: replyEnvelope(context, profile, learned),
+    source: {
+      author: context.author,
+      ...(context.postPermalink ? { permalink: context.postPermalink } : {}),
+      postExcerpt: context.excerpt,
+      targetType: context.responseTarget.type,
+      targetAuthor: context.responseTarget.author,
+      targetExcerpt: context.responseTarget.text.slice(0, 800),
+      wordCount: context.wordCount,
+    },
+    mode: 'context',
+    ...(signal ? { signal } : {}),
+  });
+}
+
+export async function analyzeManualReply(
+  postText: string,
+  profile: WritingProfile,
+  learned: LearnedPreferences,
+  signal?: AbortSignal,
+): Promise<{ record: ReplyHistoryRecord; usedFallback: boolean }> {
+  const normalized = normalizeUntrustedText(postText);
+  const envelope = manualReplyEnvelope(normalized, profile, learned);
+  const wordCount = normalized.split(/\s+/u).filter(Boolean).length;
+  return createReplyRecord({
+    responseText: normalized,
+    profile,
+    envelope,
+    source: {
+      author: 'Pasted LinkedIn post',
+      postExcerpt: normalized.slice(0, 320),
+      targetType: 'post',
+      targetAuthor: 'Original poster',
+      targetExcerpt: normalized.slice(0, 800),
+      manualText: normalized,
+      ...(wordCount > 0 ? { wordCount } : {}),
+    },
+    mode: 'manual',
+    ...(signal ? { signal } : {}),
+  });
+}
+
+async function createReplyRecord({
+  responseText,
+  profile,
+  envelope,
+  source,
+  mode,
+  signal,
+}: {
+  responseText: string;
+  profile: WritingProfile;
+  envelope: ReturnType<typeof replyEnvelope>;
+  source: ReplyHistoryRecord['source'];
+  mode: 'manual' | 'context';
+  signal?: AbortSignal;
+}): Promise<{ record: ReplyHistoryRecord; usedFallback: boolean }> {
+  const replyLanguage = resolveReplyLanguage(responseText, profile.writingLanguage);
   const result = await providerOrchestrator.run({
     schemaName: 'thoughtline_reply_analysis',
     schema: replyOutputSchemaForLanguage(replyLanguage),
@@ -119,7 +181,7 @@ Each generatedText and currentText value must contain only the reply body. Never
 direction label such as "Insight:", "Question:", "Extend:", or "Challenge:".
 Do not claim the author's experience or add facts that are absent. Use reviewNote only for a
 concrete uncertainty the writer should check; otherwise return an empty string.`,
-    untrustedEnvelope: replyEnvelope(context, profile, learned),
+    untrustedEnvelope: envelope,
     maxOutputTokens: 3_000,
     signal,
   });
@@ -140,16 +202,10 @@ concrete uncertainty the writer should check; otherwise return an empty string.`
       createdAt: now,
       updatedAt: now,
       provider: result.provider,
+      model: result.model,
+      mode,
       title: result.value.title,
-      source: {
-        author: context.author,
-        ...(context.postPermalink ? { permalink: context.postPermalink } : {}),
-        postExcerpt: context.excerpt,
-        targetType: context.responseTarget.type,
-        targetAuthor: context.responseTarget.author,
-        targetExcerpt: context.responseTarget.text.slice(0, 800),
-        wordCount: context.wordCount,
-      },
+      source,
       summary: result.value.summary,
       reviewNote: result.value.reviewNote,
       selectedDirection: 'insight',
@@ -190,6 +246,7 @@ source or profile permits them. ${hashtagPolicyInstruction(hashtagPolicy)}`,
       createdAt: now,
       updatedAt: now,
       provider: initial.provider,
+      model: initial.model,
       original: normalizeUntrustedText(original),
       goal,
       customGoal: normalizeUntrustedText(customGoal),
@@ -311,6 +368,7 @@ ${keepSourceLink ? 'Include a brief attribution naming the source author and the
       createdAt: now,
       updatedAt: now,
       provider: result.provider,
+      model: result.model,
       original: normalizeUntrustedText(context.postText),
       goal: 'custom',
       customGoal: 'Create a standalone, profile-grounded post from this source material.',
@@ -535,7 +593,8 @@ export async function regenerateReplyDirection(
 ): Promise<{ record: ReplyHistoryRecord; usedFallback: boolean }> {
   const selected = record.directions.find((direction) => direction.id === directionId);
   if (!selected) throw new Error('Selected reply direction is unavailable.');
-  const replyLanguage = resolveReplyLanguage(record.source.targetExcerpt, profile.writingLanguage);
+  const groundedSource = record.source.manualText ?? record.source.targetExcerpt;
+  const replyLanguage = resolveReplyLanguage(groundedSource, profile.writingLanguage);
   const result = await providerOrchestrator.run({
     schemaName: 'thoughtline_regenerated_reply',
     schema: regeneratedTextSchemaForLanguage(replyLanguage),
@@ -550,7 +609,7 @@ cost, risk, or personal experience. Keep the selected direction natural and spec
 Return only the reply body without a direction label such as "Insight:" or "Question:".
 Do not add facts or claim the author's experience.`,
     untrustedEnvelope: simpleEnvelope('preferences', {
-      source: record.source,
+      source: { ...record.source, targetExcerpt: groundedSource },
       direction: directionId,
       approach: selected.approach,
       currentDraft: selected.currentText,
@@ -573,6 +632,7 @@ Do not add facts or claim the author's experience.`,
       ...record,
       updatedAt: now,
       provider: result.provider,
+      model: result.model,
       directions: record.directions.map((direction) => {
         if (direction.id !== directionId) return direction;
         const generatedText = stripReplyDirectionPrefix(plainTextFromMarkdown(result.value.text));
@@ -661,7 +721,8 @@ export async function draftPost(
   signal?: AbortSignal,
 ): Promise<{
   output: z.infer<typeof postOutputSchema>;
-  provider: 'gemini' | 'groq';
+  provider: ProviderName;
+  model: string;
   usedFallback: boolean;
 }> {
   const result = await providerOrchestrator.run({
@@ -688,6 +749,7 @@ ${hashtagPolicyInstruction(hashtagPolicy)}`,
       ),
     },
     provider: result.provider,
+    model: result.model,
     usedFallback: result.usedFallback,
   };
 }
@@ -704,6 +766,7 @@ export function createIdeaHistory(
     createdAt: now,
     updatedAt: now,
     provider: generated.provider,
+    model: generated.model,
     title,
     origin:
       'lesson' in source
@@ -781,7 +844,8 @@ sentence rhythm, structure, vocabulary, perspective, and formatting. Do not infe
 export function addRevision(
   record: WorkHistoryRecord,
   nextText: string,
-  provider: 'gemini' | 'groq',
+  provider: ProviderName,
+  model?: string,
 ): WorkHistoryRecord {
   const now = new Date().toISOString();
   if (record.type === 'reply') return record;
@@ -799,6 +863,7 @@ export function addRevision(
     ...withoutFeedback,
     updatedAt: now,
     provider,
+    ...(model ? { model } : {}),
     generatedText: nextText,
     currentText: nextText,
     revisions,

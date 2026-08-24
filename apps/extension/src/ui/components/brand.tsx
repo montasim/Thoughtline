@@ -1,5 +1,6 @@
-import { Coffee } from 'lucide-react';
+import { Coffee01Icon } from '@hugeicons/core-free-icons';
 import { Button } from '../primitives/button';
+import { HugeIcon } from './huge-icon';
 
 export function ThoughtlineMark({ className = 'size-[26px]' }: { className?: string }) {
   return (
@@ -50,7 +51,7 @@ export function AppHeader({
       ) : (
         <Button asChild size="compact" className="shrink-0">
           <a href="https://www.supportkori.com/montasim" target="_blank" rel="noreferrer">
-            <Coffee className="size-[15px]" /> Support
+            <HugeIcon icon={Coffee01Icon} className="size-[15px]" /> Support
           </a>
         </Button>
       )}

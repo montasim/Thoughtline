@@ -1,4 +1,5 @@
-import { ExternalLink } from 'lucide-react';
+import { LinkSquare01Icon } from '@hugeicons/core-free-icons';
+import { HugeIcon } from '../../components/huge-icon';
 
 export function CredentialSetupGuide({
   title,
@@ -24,7 +25,7 @@ export function CredentialSetupGuide({
           rel="noreferrer"
         >
           {actionLabel}
-          <ExternalLink className="size-3" />
+          <HugeIcon icon={LinkSquare01Icon} className="size-3" />
         </a>
       </div>
       <ol className="mt-2 list-decimal space-y-1 pl-4">

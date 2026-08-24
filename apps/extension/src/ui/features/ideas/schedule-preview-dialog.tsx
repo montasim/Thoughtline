@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar03Icon } from '@hugeicons/core-free-icons';
 import { schedulePreviewSchema } from '../../../domain/schemas';
 import { Button } from '../../primitives/button';
 import { DialogContent, DialogRoot, DialogTrigger } from '../../primitives/dialog';
@@ -7,6 +7,7 @@ import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
 import { SelectContent, SelectItem, SelectRoot, SelectTrigger } from '../../primitives/select';
 import { SwitchControl } from '../../primitives/switch';
+import { HugeIcon } from '../../components/huge-icon';
 
 export function SchedulePreviewDialog() {
   const [enabled, setEnabled] = useState(false);
@@ -49,7 +50,7 @@ export function SchedulePreviewDialog() {
     >
       <DialogTrigger asChild>
         <Button size="compact">
-          <Calendar className="size-4" />
+          <HugeIcon icon={Calendar03Icon} className="size-4" />
           Schedule
         </Button>
       </DialogTrigger>

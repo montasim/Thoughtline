@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { ChevronDownIcon } from 'lucide-react';
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
 import { Accordion as AccordionPrimitive } from 'radix-ui';
 
 import { cn } from '#/lib/utils';
+import { HugeIcon } from '#/components/ui/huge-icon';
 
 function Accordion(props: React.ComponentProps<typeof AccordionPrimitive.Root>) {
   return <AccordionPrimitive.Root data-slot="accordion" {...props} />;
@@ -37,7 +38,10 @@ function AccordionTrigger({
         {...props}
       >
         {children}
-        <ChevronDownIcon className="size-5 shrink-0 text-brand transition-transform duration-200 group-data-[state=open]:rotate-180" />
+        <HugeIcon
+          icon={ArrowDown01Icon}
+          className="size-5 shrink-0 text-brand transition-transform duration-200 group-data-[state=open]:rotate-180"
+        />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
   );

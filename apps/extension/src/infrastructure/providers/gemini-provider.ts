@@ -3,7 +3,7 @@ import type {
   DraftingProvider,
   StructuredGenerationRequest,
 } from '../../application/ports/drafting-provider';
-import { modelRegistry } from '../../application/model-registry';
+import type { AiRouting } from '../../domain/schemas';
 import { AppError } from '../../application/errors';
 import {
   fetchWithTimeout,
@@ -36,7 +36,11 @@ const geminiResponseSchema = z.object({
 
 export class GeminiProvider implements DraftingProvider {
   readonly name = 'gemini' as const;
-  readonly model = modelRegistry.gemini.model;
+  readonly model: AiRouting['models']['gemini'];
+
+  constructor(model: AiRouting['models']['gemini'] = 'gemini-3.5-flash') {
+    this.model = model;
+  }
 
   async validateConnection(apiKey: string, signal?: AbortSignal): Promise<void> {
     const response = await fetchWithTimeout(

@@ -55,6 +55,13 @@ test.beforeAll(async () => {
       ]),
     });
   });
+  await context.route('https://openrouter.ai/api/v1/**', async (route) => {
+    await route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { message: 'Free model limit reached in test.' } }),
+    });
+  });
   await context.route('https://generativelanguage.googleapis.com/**', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 250));
     await route.fulfill({
@@ -110,6 +117,7 @@ test('collects source evidence, synthesizes it, and renders an Idea result', asy
   await page.evaluate(async () => {
     await chrome.storage.session.set({
       'thoughtline.session-credentials': {
+        openrouter: 'test-openrouter-key',
         gemini: 'test-gemini-key',
         groq: 'test-groq-key',
       },

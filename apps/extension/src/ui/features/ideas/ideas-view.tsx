@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { ArrowLeft, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import {
+  AiSparklesIcon,
+  ArrowLeft01Icon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
+} from '@hugeicons/core-free-icons';
 import { collectSourceEvidence } from '../../../application/idea-research';
 import { feedbackAfterEdit, feedbackAfterRating } from '../../../application/feedback';
 import {
@@ -32,12 +37,14 @@ import {
   copyText,
   EditorActions,
   EmptyState,
+  ModelProvenance,
   PageHeading,
   ProgressState,
   StatusBadge,
   SummaryCard,
 } from '../../components/common';
 import { SchedulePreviewDialog } from './schedule-preview-dialog';
+import { HugeIcon } from '../../components/huge-icon';
 
 export function IdeasView() {
   const { app, session, refresh, saveApp } = useAppStore();
@@ -196,7 +203,12 @@ export function IdeasView() {
               structuredClone(app.settings.hashtagPolicy),
               signal,
             );
-            const next = addRevision(postRecord, generated.output.post, generated.provider);
+            const next = addRevision(
+              postRecord,
+              generated.output.post,
+              generated.provider,
+              generated.model,
+            );
             if (next.type === 'idea') {
               if (chrome.extension.inIncognitoContext) setEphemeral(next);
               else await storageRepository.addHistory(next);
@@ -225,7 +237,7 @@ export function IdeasView() {
                 title="Back to ideas"
                 onClick={() => void saveSession({ ideaView: 'search', activeRecordId: undefined })}
               >
-                <ArrowLeft className="size-4" />
+                <HugeIcon icon={ArrowLeft01Icon} className="size-4" />
               </Button>
               <Button size="compact" onClick={startSearch}>
                 Try sources
@@ -403,7 +415,7 @@ function IdeaCard({
             aria-pressed={rating === 'liked'}
             onClick={() => onRate('liked')}
           >
-            <ThumbsUp className="size-4" />
+            <HugeIcon icon={ThumbsUpIcon} className="size-4" />
           </Button>
           <Button
             size="icon"
@@ -412,7 +424,7 @@ function IdeaCard({
             aria-pressed={rating === 'disliked'}
             onClick={() => onRate('disliked')}
           >
-            <ThumbsDown className="size-4" />
+            <HugeIcon icon={ThumbsDownIcon} className="size-4" />
           </Button>
           <Button
             size="icon"
@@ -420,7 +432,7 @@ function IdeaCard({
             onClick={onCreate}
             disabled={busy}
           >
-            <Sparkles className="size-4" />
+            <HugeIcon icon={AiSparklesIcon} className="size-4" />
           </Button>
         </div>
       </div>
@@ -482,7 +494,7 @@ function IdeaPostEditor({
             className="mt-1 min-h-8 gap-[5px] px-[9px] py-[5px] text-[10.5px]"
             onClick={onBack}
           >
-            <ArrowLeft className="size-3.5" />
+            <HugeIcon icon={ArrowLeft01Icon} className="size-3.5" />
             Back to ideas
           </Button>
         }
@@ -535,6 +547,7 @@ function IdeaPostEditor({
           className="min-h-[190px]"
           aria-label="Editable post"
         />
+        <ModelProvenance provider={record.provider} model={record.model} />
         <AccordionRoot type="single" defaultValue="source" collapsible>
           <AccordionItem value="source">
             <AccordionTrigger>Source and writing direction</AccordionTrigger>

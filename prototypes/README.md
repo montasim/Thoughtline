@@ -76,8 +76,15 @@ after the person invokes the Chrome context-menu action on a rendered LinkedIn p
 - adds Settings controls for the context-menu action, attribution default, and experience-claim
   confirmation.
 
-Version 6 is the approved Chrome extension contract. `reference.json` points to this immutable
-reference and the production extension implements its Refine workflow.
+Version 6 established the Refine workflow retained by later approved versions.
+
+### Version 7
+
+`simplified-ui-v7.html` preserves the Version 6 visual system and Refine workflow while replacing
+the two-provider connection surface with the ordered OpenRouter → Gemini → Groq route. Onboarding
+and Settings show curated model choices, make Gemma 4 31B the recommended multilingual writing
+model, identify the two direct-provider free-tier confirmations, and include the OpenRouter key in
+the existing opt-in secrets backup flow. Version 7 is the approved Chrome extension contract.
 
 The production extension follows the highest prototype version explicitly approved by the user.
 

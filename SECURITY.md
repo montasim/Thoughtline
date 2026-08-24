@@ -17,7 +17,7 @@ Include the affected release, Chrome version, reproduction conditions, expected 
 - LinkedIn extraction is passive, fail-closed, and scoped to the exact right-click target.
 - Only trusted extension contexts can access credential and storage services.
 - Persistent API keys use AES-256-GCM with a non-exportable device-bound IndexedDB key and per-record IVs.
-- Gemini is attempted once; only defined provider failures can fall back once to Groq.
+- A curated free OpenRouter model is attempted first; only defined failures continue once through Gemini and then Groq, with a bounded timeout for every provider stage.
 - One global foreground-job lease prevents overlapping AI jobs across extension surfaces.
 - Data Archive imports are whole-file validated and merge by stable UUID plus newer update time. Credentials are structurally excluded.
 - Diagnostics exclude content and credentials.

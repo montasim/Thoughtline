@@ -12,6 +12,7 @@ import {
   type ReplyDirectionId,
   type SessionState,
   type WorkHistoryRecord,
+  parseAppDataWithMigration,
 } from '../../domain/schemas';
 import {
   calibratedLayoutRecipeListSchema,
@@ -44,8 +45,14 @@ export class ChromeStorageRepository {
       await this.saveAppData(defaultAppData);
       return structuredClone(defaultAppData);
     }
-    const parsed = appDataSchema.safeParse(candidate);
-    if (parsed.success) return parsed.data;
+    try {
+      const parsed = parseAppDataWithMigration(candidate);
+      if ((candidate as { schemaVersion?: unknown }).schemaVersion === 1)
+        await this.saveAppData(parsed);
+      return parsed;
+    } catch {
+      // Preserve the untouched value below before reporting recovery mode.
+    }
 
     await chrome.storage.local.set({ [RECOVERY_KEY]: candidate });
     throw new AppError(
@@ -223,8 +230,13 @@ export class ChromeStorageRepository {
     if (navigator.locks) {
       return navigator.locks.request(
         'thoughtline:claim-foreground-job',
-        { mode: 'exclusive' },
-        () => this.claimJobWithoutWebLock(ownerId, timeoutMs),
+        { mode: 'exclusive', ifAvailable: true },
+        (lock) => {
+          if (!lock) {
+            throw new AppError('busy', 'Another Thoughtline activity is already running.');
+          }
+          return this.claimJobWithoutWebLock(ownerId, timeoutMs);
+        },
       );
     }
     return this.claimJobWithoutWebLock(ownerId, timeoutMs);

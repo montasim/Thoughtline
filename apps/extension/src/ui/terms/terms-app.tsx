@@ -9,7 +9,7 @@ const sections = [
   },
   {
     title: 'AI processing',
-    body: 'When you request writing, the extension sends the content needed for that request directly to Google Gemini. If the request cannot be completed, it may send the same request once to Groq as an automatic fallback. Those providers apply their own terms and data practices.',
+    body: 'When you request writing, the extension sends the content needed for that request to your selected free OpenRouter model first. If an eligible request cannot be completed, it may send the same bounded request to Gemini and then Groq. Those providers apply their own terms, data practices, quotas, and account billing controls.',
   },
   {
     title: 'LinkedIn and public sources',

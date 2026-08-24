@@ -51,6 +51,32 @@ export function replyEnvelope(
   });
 }
 
+export function manualReplyEnvelope(
+  postText: string,
+  profile: WritingProfile,
+  learned: LearnedPreferences,
+): z.infer<typeof envelopeSchema> {
+  const normalized = normalizeUntrustedText(postText);
+  if (!normalized || normalized.length > 12_000) {
+    throw new AppError('invalid-input', 'Paste between 1 and 12,000 characters to reply to.');
+  }
+  assertContextBudget([normalized, profile.styleGuide]);
+  return envelopeSchema.parse({
+    boundary: 'untrusted-content',
+    workflow: 'reply',
+    source: {
+      postText: normalized,
+      responseTarget: {
+        type: 'post',
+        author: 'Original poster',
+        text: normalized,
+      },
+    },
+    profile,
+    ...(learned.acceptedSummary ? { learnedPreferences: learned.acceptedSummary } : {}),
+  });
+}
+
 export function rewriteEnvelope(
   original: string,
   instruction: string,

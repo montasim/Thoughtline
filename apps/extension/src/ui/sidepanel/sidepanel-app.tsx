@@ -37,13 +37,17 @@ export function SidePanelApp() {
 
   const changeTab = async (tab: ActiveTab) => {
     await storageRepository.updateSession((current) => {
-      if (tab !== 'generate' || current.activeTab === 'generate') {
+      const opensManualComposer =
+        current.activeTab !== tab && (tab === 'reply' || tab === 'generate');
+      if (!opensManualComposer) {
         return { ...current, activeTab: tab };
       }
       const next = {
         ...current,
         activeTab: tab,
-        refinement: { status: 'idle' as const },
+        ...(tab === 'generate'
+          ? { refinement: { status: 'idle' as const } }
+          : { analysis: { status: 'idle' as const } }),
       };
       delete next.activeRecordId;
       return next;

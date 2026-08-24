@@ -31,6 +31,15 @@ describe('device-bound provider credentials', () => {
     await expect(vault.get('groq')).resolves.toBeNull();
   });
 
+  it('stores OpenRouter independently from direct-provider credentials', async () => {
+    const vault = new CredentialVault();
+    await vault.save('openrouter', 'openrouter-secret-key-123');
+
+    await expect(vault.get('openrouter')).resolves.toBe('openrouter-secret-key-123');
+    await expect(vault.get('gemini')).resolves.toBeNull();
+    await expect(vault.get('groq')).resolves.toBeNull();
+  });
+
   it('stores image-provider credentials independently from writing-provider keys', async () => {
     const vault = new CredentialVault();
     const credentials = JSON.stringify({

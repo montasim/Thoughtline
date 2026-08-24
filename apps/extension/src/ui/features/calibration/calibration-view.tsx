@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Brackets, Check, Cpu, ShieldCheck } from 'lucide-react';
+import {
+  Alert01Icon,
+  BracketsIcon,
+  CpuIcon,
+  ShieldCheckIcon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
 import { AppError, toAppError, type AppErrorCode } from '../../../application/errors';
 import { proposeLayoutCalibration } from '../../../application/workflows';
 import {
@@ -17,6 +23,7 @@ import { Card } from '../../primitives/card';
 import { PageHeading, StatusBadge } from '../../components/common';
 import { useForegroundJob } from '../../hooks/use-foreground-job';
 import { useAppStore } from '../../state/app-store';
+import { HugeIcon } from '../../components/huge-icon';
 
 type Phase = 'checking' | 'setup' | 'evidence' | 'preview' | 'saving' | 'success' | 'error';
 
@@ -179,7 +186,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
           usedLocalFallback
             ? 'The AI mapping included unrelated controls, so Thoughtline used the validated on-device mapping.'
             : result.usedFallback
-              ? 'Gemini was unavailable. Groq proposed this layout using the same reviewed evidence.'
+              ? 'A fallback provider proposed this layout using the same reviewed evidence.'
               : null,
         );
         setPhase('preview');
@@ -239,7 +246,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
 
       {phase === 'checking' ? (
         <CalibrationNotice
-          icon={<Brackets className="size-5" />}
+          icon={<HugeIcon icon={BracketsIcon} className="size-5" />}
           title="Reading the selected region"
           description="Thoughtline is building a bounded, visible DOM view around your right-click."
         />
@@ -247,9 +254,9 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
 
       {phase === 'setup' ? (
         <CalibrationNotice
-          icon={<Cpu className="size-5" />}
+          icon={<HugeIcon icon={CpuIcon} className="size-5" />}
           title="Finish AI setup first"
-          description="AI calibration requires consent, valid Gemini and Groq keys, and provider access. Right-click the item again after setup."
+          description="AI calibration requires consent, three valid provider keys, the zero-cost route confirmation, and provider access. Right-click the item again after setup."
           actions={
             <>
               <Button variant="secondary" onClick={() => void cancel()}>
@@ -266,13 +273,13 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
           <Card className="calibration-evidence-card overflow-hidden p-0">
             <div className="flex items-start gap-3 border-b border-[#b8d3cf] bg-proof-soft px-4 py-3">
               <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-[#a7c8c3] bg-surface text-proof">
-                <ShieldCheck className="size-4" />
+                <HugeIcon icon={ShieldCheckIcon} className="size-4" />
               </span>
               <div>
                 <h3 className="font-display text-[16px] font-[680]">Review before sending</h3>
                 <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                  Gemini receives this evidence first. The identical evidence may be sent once to
-                  Groq if Gemini fails.
+                  OpenRouter receives this evidence first. The identical evidence may be sent to
+                  Gemini and then Groq if an earlier stage fails.
                 </p>
               </div>
             </div>
@@ -308,7 +315,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
 
       {job.running ? (
         <CalibrationNotice
-          icon={<Cpu className="size-5 animate-pulse" />}
+          icon={<HugeIcon icon={CpuIcon} className="size-5 animate-pulse" />}
           title="Identifying the layout"
           description="Gemini is proposing a structural recipe. Thoughtline will validate every returned node locally."
           actions={
@@ -329,7 +336,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
           <Card className="overflow-hidden p-0">
             <div className="flex items-start gap-3 border-b border-rule px-4 py-3">
               <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-[#a7c8c3] bg-proof-soft text-proof">
-                <Brackets className="size-4" />
+                <HugeIcon icon={BracketsIcon} className="size-4" />
               </span>
               <div>
                 <h3 className="font-display text-[16px] font-[680]">Confirm the visible item</h3>
@@ -365,7 +372,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
 
       {phase === 'success' && candidate ? (
         <CalibrationNotice
-          icon={<Check className="size-5" />}
+          icon={<HugeIcon icon={Tick02Icon} className="size-5" />}
           title={
             candidate.preview.persistent
               ? 'Layout saved on this device'
@@ -383,7 +390,7 @@ export function CalibrationView({ onOpenSettings }: { onOpenSettings: () => void
 
       {phase === 'error' ? (
         <CalibrationNotice
-          icon={<AlertTriangle className="size-5" />}
+          icon={<HugeIcon icon={Alert01Icon} className="size-5" />}
           title="Calibration could not finish"
           description={error}
           actions={

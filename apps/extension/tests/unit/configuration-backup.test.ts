@@ -36,7 +36,7 @@ describe('configuration backups', () => {
     expect(text).not.toContain('gemini-secret-key');
     expect(exported).toMatchObject({
       format: 'thoughtline-configuration',
-      version: 1,
+      version: 2,
       app: {
         profile: { role: 'Senior Software Engineer' },
         settings: {
@@ -50,8 +50,10 @@ describe('configuration backups', () => {
   it('includes and restores secrets, permissions, and the imported app state when selected', async () => {
     const app = structuredClone(defaultAppData);
     app.profile.role = 'Imported role';
+    app.settings.aiRouting.zeroCostConfirmed = true;
     app.settings.providerValidation.gemini.state = 'valid';
     app.settings.providerValidation.groq.state = 'valid';
+    await credentialVault.save('openrouter', 'openrouter-secret-key');
     await credentialVault.save('gemini', 'gemini-secret-key');
     await credentialVault.save('groq', 'groq-secret-key');
     await imageCredentialRepository.save({
@@ -64,6 +66,7 @@ describe('configuration backups', () => {
     const blob = await exportConfiguration(app, true);
     const backup = await readConfiguration(new File([blob], 'thoughtline-configuration.json'));
     expect(backup.secrets).toMatchObject({
+      openrouterApiKey: 'openrouter-secret-key',
       geminiApiKey: 'gemini-secret-key',
       groqApiKey: 'groq-secret-key',
       cloudflareImages: { accountId: '0123456789abcdef0123456789abcdef' },
@@ -73,9 +76,12 @@ describe('configuration backups', () => {
     const restored = await applyConfiguration(structuredClone(defaultAppData), backup);
 
     expect(restored.app.profile.role).toBe('Imported role');
-    expect(restored.app.settings.providerValidation.gemini.state).toBe('valid');
+    expect(restored.app.settings.providerValidation.openrouter.state).toBe('unvalidated');
+    expect(restored.app.settings.providerValidation.gemini.state).toBe('unvalidated');
+    expect(restored.app.settings.aiRouting.zeroCostConfirmed).toBe(false);
     expect(restored.permissionsGranted).toBe(true);
     await expect(credentialVault.get('gemini')).resolves.toBe('gemini-secret-key');
+    await expect(credentialVault.get('openrouter')).resolves.toBe('openrouter-secret-key');
     await expect(credentialVault.get('groq')).resolves.toBe('groq-secret-key');
     await expect(imageCredentialRepository.get()).resolves.toMatchObject({
       values: { accountId: '0123456789abcdef0123456789abcdef' },
@@ -87,6 +93,7 @@ describe('configuration backups', () => {
   it('preserves current provider state and secrets when the imported file omits secrets', async () => {
     const current = structuredClone(defaultAppData);
     current.settings.providerValidation.gemini.state = 'valid';
+    current.settings.aiRouting.zeroCostConfirmed = true;
     await credentialVault.save('gemini', 'current-gemini-key');
     const backup = await readConfiguration(
       new File([await exportConfiguration(defaultAppData, false)], 'configuration.json'),
@@ -95,6 +102,7 @@ describe('configuration backups', () => {
     const restored = await applyConfiguration(current, backup);
 
     expect(restored.app.settings.providerValidation.gemini.state).toBe('valid');
+    expect(restored.app.settings.aiRouting.zeroCostConfirmed).toBe(true);
     await expect(credentialVault.get('gemini')).resolves.toBe('current-gemini-key');
   });
 
@@ -121,5 +129,43 @@ describe('configuration backups', () => {
     await expect(
       readConfiguration(new File(['{"format":"something-else"}'], 'bad.json')),
     ).rejects.toMatchObject({ code: 'invalid-input' });
+  });
+
+  it('imports legacy v1 backups with safe OpenRouter defaults and no invented key', async () => {
+    const legacyApp = structuredClone(defaultAppData) as unknown as {
+      schemaVersion: number;
+      settings: Record<string, unknown>;
+    };
+    legacyApp.schemaVersion = 1;
+    delete legacyApp.settings.aiRouting;
+    delete (legacyApp.settings.providerValidation as Record<string, unknown>).openrouter;
+    const legacy = {
+      format: 'thoughtline-configuration',
+      version: 1,
+      createdAt: new Date().toISOString(),
+      extensionVersion: '0.3.0',
+      app: legacyApp,
+      calibratedLayouts: [],
+      permissions: {
+        linkedIn: false,
+        providers: false,
+        imageProvider: false,
+        researchSources: [],
+        unlimitedStorage: false,
+      },
+      secrets: {
+        geminiApiKey: 'legacy-gemini-key',
+        groqApiKey: 'legacy-groq-key',
+        cloudflareImages: null,
+      },
+    };
+
+    const backup = await readConfiguration(
+      new File([JSON.stringify(legacy)], 'legacy-configuration.json'),
+    );
+
+    expect(backup.version).toBe(2);
+    expect(backup.app.settings.aiRouting.models.openrouter).toBe('google/gemma-4-31b-it:free');
+    expect(backup.secrets?.openrouterApiKey).toBeNull();
   });
 });

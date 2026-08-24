@@ -86,6 +86,7 @@ export function installChromeMock(): ChromeMemory {
         optional_permissions: ['unlimitedStorage'],
         optional_host_permissions: [
           'https://www.linkedin.com/*',
+          'https://openrouter.ai/*',
           'https://generativelanguage.googleapis.com/*',
           'https://api.groq.com/*',
           'https://api.cloudflare.com/*',

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, ExternalLink, Trash2 } from 'lucide-react';
+import { Copy01Icon, Delete02Icon, LinkSquare01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import type { ReplyDirectionId, WorkHistoryRecord } from '../../../domain/schemas';
 import { storageRepository } from '../../../infrastructure/storage/chrome-storage';
 import { useAppStore } from '../../state/app-store';
@@ -16,6 +16,7 @@ import { Input } from '../../primitives/input';
 import { SelectContent, SelectItem, SelectRoot, SelectTrigger } from '../../primitives/select';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../primitives/tabs';
 import { Textarea } from '../../primitives/textarea';
+import { HugeIcon } from '../../components/huge-icon';
 import {
   copyText,
   PageHeading,
@@ -171,7 +172,7 @@ function HistoryRecordCard({
             aria-label={`Delete ${recordTitle(record)}`}
             onClick={onDelete}
           >
-            <Trash2 className="size-4" />
+            <HugeIcon icon={Delete02Icon} className="size-4" />
           </Button>
         </div>
         <button
@@ -272,7 +273,7 @@ function ExpandedRecord({
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Open LinkedIn post <ExternalLink className="size-3" />
+                    Open LinkedIn post <HugeIcon icon={LinkSquare01Icon} className="size-3" />
                   </a>
                 ) : (
                   <span className="text-muted">Link unavailable</span>
@@ -324,7 +325,7 @@ function ExpandedRecord({
                   className="inline-flex items-center gap-1 text-proof underline"
                 >
                   Open {record.source.author}’s LinkedIn post
-                  <ExternalLink className="size-3" />
+                  <HugeIcon icon={LinkSquare01Icon} className="size-3" />
                 </a>
               ) : null}
             </AccordionContent>
@@ -447,7 +448,7 @@ function SavedContentHeader({
           data-copied={copied || undefined}
           onClick={() => void copy()}
         >
-          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          <HugeIcon icon={copied ? Tick02Icon : Copy01Icon} className="size-4" />
         </Button>
       </div>
       <span className="sr-only" aria-live="polite">
