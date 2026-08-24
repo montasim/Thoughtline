@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CalibratedLayoutRecipe } from '../../src/domain/calibration';
 import { defaultAppData, type RewriteHistoryRecord } from '../../src/domain/schemas';
 import { ChromeStorageRepository } from '../../src/infrastructure/storage/chrome-storage';
@@ -38,6 +38,33 @@ describe('Chrome storage repository', () => {
     });
   });
 
+  it('migrates v1 app data to the free-only three-provider route', async () => {
+    const legacy = structuredClone(defaultAppData) as unknown as {
+      schemaVersion: number;
+      settings: Record<string, unknown>;
+    };
+    legacy.schemaVersion = 1;
+    delete legacy.settings.aiRouting;
+    const validation = legacy.settings.providerValidation as Record<string, unknown>;
+    delete validation.openrouter;
+    memory.local.set('thoughtline.app-data', legacy);
+
+    const repository = new ChromeStorageRepository();
+    const loaded = await repository.loadAppData();
+
+    expect(loaded.schemaVersion).toBe(2);
+    expect(loaded.settings.aiRouting).toEqual({
+      models: {
+        openrouter: 'google/gemma-4-31b-it:free',
+        gemini: 'gemini-3.5-flash',
+        groq: 'openai/gpt-oss-120b',
+      },
+      zeroCostConfirmed: false,
+    });
+    expect(loaded.settings.providerValidation.openrouter.state).toBe('missing');
+    expect(memory.local.get('thoughtline.app-data')).toMatchObject({ schemaVersion: 2 });
+  });
+
   it('enforces the configured history limit when saving from any surface', async () => {
     const repository = new ChromeStorageRepository();
     const app = structuredClone(defaultAppData);
@@ -55,6 +82,36 @@ describe('Chrome storage repository', () => {
     await expect(repository.claimJob(second)).rejects.toMatchObject({ code: 'busy' });
     await repository.releaseJob(first);
     await expect(repository.claimJob(second)).resolves.toMatchObject({ ownerId: second });
+  });
+
+  it('fails immediately when the cross-context foreground-job lock is unavailable', async () => {
+    const originalLocks = navigator.locks;
+    const request = vi.fn(
+      async (
+        _name: string,
+        _options: LockOptions,
+        callback: (lock: Lock | null) => Promise<unknown>,
+      ) => callback(null),
+    );
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request },
+    });
+
+    try {
+      const repository = new ChromeStorageRepository();
+      await expect(repository.claimJob(createId())).rejects.toMatchObject({ code: 'busy' });
+      expect(request).toHaveBeenCalledWith(
+        'thoughtline:claim-foreground-job',
+        expect.objectContaining({ ifAvailable: true }),
+        expect.any(Function),
+      );
+    } finally {
+      Object.defineProperty(navigator, 'locks', {
+        configurable: true,
+        value: originalLocks,
+      });
+    }
   });
 
   it('quarantines malformed local data instead of silently resetting it', async () => {

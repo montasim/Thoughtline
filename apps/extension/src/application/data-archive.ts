@@ -15,6 +15,7 @@ const portableSettingsSchema = appDataSchema.shape.settings.omit({
   consent: true,
   providerValidation: true,
   onboardingComplete: true,
+  aiRouting: true,
 });
 
 const archivePayloadSchema = z.object({

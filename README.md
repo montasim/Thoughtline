@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Support on SupportKori](https://img.shields.io/badge/Support-SupportKori-FFDD00)](https://www.supportkori.com/montasim)
 
-Thoughtline is a user-controlled Chrome side-panel extension for understanding a selected LinkedIn conversation and shaping writing in your own voice. It creates four reply directions, refines pasted or selected content, researches post ideas, and keeps editable work history. It never publishes for you.
+Thoughtline is a user-controlled Chrome side-panel extension for understanding LinkedIn conversations and shaping writing in your own voice. Paste a post or select one visible LinkedIn discussion to create four reply directions, refine pasted or selected content, research post ideas, and keep editable work history. It never publishes for you.
 
 **[Download the latest release](https://github.com/montasim/Thoughtline/releases/latest) · [Report an issue](https://github.com/montasim/Thoughtline/issues) · [Read the privacy policy](PRIVACY.md)**
 
@@ -13,11 +13,13 @@ Thoughtline is a user-controlled Chrome side-panel extension for understanding a
 
 ## Current release highlights
 
-- Added validated configuration export and import in onboarding and Settings so a complete setup can move to a fresh installation.
-- Added an explicit **Include secrets** option for API keys, tokens, and account IDs; secrets remain excluded by default.
-- Added a hashtag policy with 0–10 generated tags and up to 10 saved custom tags for every generated or refined post.
-- Added provider-specific setup guides with direct links for Gemini, Groq, and optional Cloudflare Workers AI credentials.
-- Hardened LinkedIn comment and nested-reply extraction with guarded, device-local layout recovery.
+- Added a fixed free-only OpenRouter → Gemini → Groq drafting route with bounded timeouts and automatic eligible fallback.
+- Added curated model selection in onboarding and Settings. Gemma 4 31B is the recommended OpenRouter model for writing and multilingual work.
+- Added one explicit zero-cost confirmation for the complete three-provider route; OpenRouter choices are restricted to `:free` models.
+- Added a manual Reply journey for pasting a LinkedIn post and producing the same four editable directions as the right-click workflow.
+- Added provider and model provenance to generated replies, refinements, and posts.
+- Added visible progress and recovery states so provider or foreground-job failures do not look like indefinite processing.
+- Replaced interface action icons with Hugeicons while preserving the original Thoughtline logo.
 
 ## Product tour
 
@@ -37,18 +39,19 @@ Writing tools often replace the writer's judgment, detach a reply from its actua
 - Right-click one already-rendered LinkedIn post and choose **Thoughtline → Refine the post to make your own** to create a distinct post through your confirmed perspective.
 - Passively extract only that selected post context and its visible discussion. Thoughtline does not click, scroll, expand, fetch LinkedIn pages, or read unrelated posts.
 - Generate bilingual post summaries and four independently editable reply directions: Insight, Question, Extend, and Challenge.
+- Paste a LinkedIn post directly into **Reply** and create the same four editable directions without using the context menu.
 - Paste content into **Refine** and reshape it in the configured voice.
 - Search Hacker News, DEV, Medium, Lobsters, and Stack Overflow when enabled, with at most one idea selected from each source. Every source reference links to the original item.
 - Build an editable LinkedIn post from a sourced idea or a real experience supplied by the user.
 - Optionally create, preview, refine, regenerate, and download a landscape editorial illustration for a profile-grounded Refine result through Cloudflare Workers AI.
 - Search, filter, edit, revise, delete, clear, retain, export, and import Reply, Refine, and Idea history.
 - Export a validated configuration JSON containing settings, permissions, profile, preferences, History, provider status, and calibrated layouts; import it during onboarding or later in Settings.
-- Keep credentials out of configuration backups by default, or explicitly include Gemini, Groq, and Cloudflare credentials when moving a complete setup.
+- Keep credentials out of configuration backups by default, or explicitly include OpenRouter, Gemini, Groq, and Cloudflare credentials when moving a complete setup.
 - Configure writing language, length, tone, custom instructions, writing samples, and a reviewable style guide.
 - Choose 0–10 generated hashtags and save up to 10 custom hashtags that are appended to every generated or refined post.
 - Derive an editable profile suggestion locally from the user's own LinkedIn PDF export; the raw PDF is not retained.
 - Learn inspectable writing preferences only from explicit ratings, selected directions, and substantial edits.
-- Use Gemini first and Groq once as automatic fallback through one provider port. Both valid API keys are required.
+- Use a fixed free-only OpenRouter → Gemini → Groq route through one provider port. All three valid API keys and one explicit zero-cost route confirmation are required.
 - Preserve one active workspace per Chrome session and enforce one foreground AI job globally.
 
 ## Install from a GitHub release
@@ -78,7 +81,7 @@ For a new setup, Thoughtline asks only when a capability needs permission:
 
 1. Review and accept direct AI processing consent.
 2. Allow access to LinkedIn pages. This is page permission, not LinkedIn OAuth or an account connection.
-3. Follow the built-in setup guides to create and validate both a [Gemini API key](https://aistudio.google.com/apikey) and a [Groq API key](https://console.groq.com/keys).
+3. Follow the built-in setup guides to create and validate an [OpenRouter API key](https://openrouter.ai/settings/keys), a [Gemini API key](https://aistudio.google.com/apikey), and a [Groq API key](https://console.groq.com/keys). Confirm that Gemini billing is disabled and Groq remains on its Free Plan.
 4. Add a role, topics, and audience. PDF profile import is optional.
 5. Optionally enable public research sources as you use Idea search.
 
@@ -89,7 +92,7 @@ Provider keys are encrypted at rest with AES-256-GCM and a non-exportable device
 ## Back up and restore a setup
 
 1. Open **Settings → Configuration backup** and choose **Export**.
-2. Leave **Include secrets** unchecked for a backup without credentials. Select it only when the backup must also carry Gemini, Groq, and Cloudflare credentials.
+2. Leave **Include secrets** unchecked for a backup without credentials. Select it only when the backup must also carry OpenRouter, Gemini, Groq, and Cloudflare credentials.
 3. On a fresh installation, choose **Import configuration** during onboarding or from the same Settings section.
 4. Select the JSON, review its date, History count, and secret status, then choose **Use this configuration**.
 5. Approve any imported Chrome permissions that are still declared and available in the installed extension.
@@ -100,10 +103,21 @@ The separate **Writing data archive** under **History & storage** can create an 
 
 ## Reply workflow
 
+### Paste a post manually
+
+1. Open **Reply** in the side panel.
+2. Paste the LinkedIn post you want to answer and choose **Create reply options**.
+3. Review the bilingual summary and switch among Insight, Question, Extend, and Challenge.
+4. Edit, rate, regenerate, or copy the selected reply. The result records its provider and model and remains available in History.
+
+Selecting the Reply tab from another workspace opens this manual composer. Use **New reply** on a result when you want to start another pasted-post reply.
+
+### Reply from visible LinkedIn context
+
 1. Open LinkedIn and make sure the post and discussion you want analyzed are already visible in the DOM.
 2. Right-click inside the post, comment, or reply you intend to answer.
 3. Select **Draft a reply with Thoughtline** from Chrome's menu.
-4. Thoughtline opens the side panel, validates a bounded content envelope, and runs Gemini with Groq fallback.
+4. Thoughtline opens the side panel, validates a bounded content envelope, and runs the selected free OpenRouter model with Gemini and Groq fallback.
 5. Review the summary and warning, switch among four directions, edit the selected text, rate or regenerate it, and copy it.
 6. Paste and publish manually on LinkedIn.
 
@@ -132,7 +146,7 @@ Comments and replies remain part of the Reply workflow. The Refine action accept
 - No raw HTML or DOM is sent to an AI provider.
 - Names and visible text are kept because the user authorized analysis of that context.
 - Untrusted source text is normalized, bounded, Zod-validated, and separated from trusted instructions; it is not treated as an instruction.
-- AI work is sent directly to Gemini and, only on an eligible failure, once to Groq.
+- AI work uses a curated free OpenRouter model first, then confirmed free-tier Gemini and Groq fallbacks.
 - History uses `chrome.storage.local`; session work and the global job lease use `chrome.storage.session`.
 - Incognito mode uses split storage and does not persist work to History.
 - No analytics or remote telemetry is included.
@@ -207,21 +221,21 @@ prototypes/web/               Static Tailwind CDN marketing prototypes
 docs/adr/                     Architectural decision records
 ```
 
-The feature code depends on typed ports rather than provider-specific response shapes. Gemini and Groq share the same validated request contract, so another provider can be introduced by implementing `DraftingProvider`. Source research follows the same adapter boundary. Shared UI primitives use Tailwind CSS v4 and Radix; there is no component-level vanilla CSS.
+The feature code depends on typed ports rather than provider-specific response shapes. OpenRouter, Gemini, and Groq share the same validated request contract, so another provider can be introduced by implementing `DraftingProvider` and registering curated models. Source research follows the same adapter seam. Shared UI primitives use Tailwind CSS v4 and Radix; there is no component-level vanilla CSS.
 
 The domain language and non-negotiable behavior live in [CONTEXT.md](CONTEXT.md). Architectural decisions live in [docs/adr](docs/adr), and [prototypes/extention/reference.json](prototypes/extention/reference.json) always identifies the approved immutable visual contract.
 
 ## Technology
 
-| Area         | Technology                                                       |
-| ------------ | ---------------------------------------------------------------- |
-| Extension    | WXT, Chrome Manifest V3, TypeScript                              |
-| Interface    | React 19, Tailwind CSS 4, Radix primitives                       |
-| Validation   | Zod at provider, storage, archive, and content boundaries        |
-| AI providers | Gemini with one eligible Groq fallback                           |
-| Local data   | Chrome local and session storage, encrypted provider credentials |
-| Documents    | PDF.js for local LinkedIn profile-export text extraction         |
-| Quality      | Vitest, Testing Library, Playwright, Axe, visual regression      |
+| Area         | Technology                                                           |
+| ------------ | -------------------------------------------------------------------- |
+| Extension    | WXT, Chrome Manifest V3, TypeScript                                  |
+| Interface    | React 19, Tailwind CSS 4, Radix primitives, Hugeicons                |
+| Validation   | Zod at provider, storage, archive, and content boundaries            |
+| AI providers | Free OpenRouter model, then confirmed-free Gemini and Groq fallbacks |
+| Local data   | Chrome local and session storage, encrypted provider credentials     |
+| Documents    | PDF.js for local LinkedIn profile-export text extraction             |
+| Quality      | Vitest, Testing Library, Playwright, Axe, visual regression          |
 
 ## Release
 
@@ -240,7 +254,7 @@ The release workflow installs dependencies, runs unit/static/build checks and th
 - Thoughtline is distributed as a development release, not through the Chrome Web Store.
 - It analyzes only the rendered content inside the user's explicit target; collapsed, paginated, and unloaded discussion is unavailable.
 - AI output can be incomplete or incorrect and must be reviewed before use.
-- Both valid provider keys are currently required even though Groq is used only for eligible fallback.
+- All three valid provider keys are required even though Gemini and Groq are used only for eligible fallback; their free-account confirmations remain the user's responsibility.
 - Idea availability depends on enabled public sources and the permissions granted to them.
 - Scheduling controls are a non-operational preview and do not send posts or email.
 - Credentials are encrypted at rest, but a compromised browser or operating system remains outside that protection boundary.

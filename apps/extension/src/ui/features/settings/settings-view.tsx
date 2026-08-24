@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, ExternalLink, FileText } from 'lucide-react';
+import { File02Icon, LinkSquare01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { collectFeedbackExamples } from '../../../application/feedback';
@@ -43,6 +43,7 @@ import { Card } from '../../primitives/card';
 import { DialogContent, DialogRoot } from '../../primitives/dialog';
 import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
+import { HugeIcon } from '../../components/huge-icon';
 import { SelectContent, SelectItem, SelectRoot, SelectTrigger } from '../../primitives/select';
 import { SwitchControl } from '../../primitives/switch';
 import { Textarea } from '../../primitives/textarea';
@@ -288,7 +289,7 @@ export function SettingsView() {
               key={item.label}
               className="inline-flex items-center gap-1.5 rounded-full border border-[#c7ddd9] bg-surface px-2 py-1 text-[11px] text-proof"
             >
-              {item.ready ? <Check className="size-3" /> : null}
+              {item.ready ? <HugeIcon icon={Tick02Icon} className="size-3" /> : null}
               {item.label}
             </span>
           ))}
@@ -298,7 +299,7 @@ export function SettingsView() {
         <SettingsSection
           value="connections"
           title="Connections"
-          subtitle={`${linkedInAllowed ? 'LinkedIn allowed' : 'LinkedIn not allowed'} · Gemini and Groq ${isProviderReady(app.settings) ? 'ready' : 'need review'}`}
+          subtitle={`${linkedInAllowed ? 'LinkedIn allowed' : 'LinkedIn not allowed'} · AI route ${isProviderReady(app.settings) ? 'ready' : 'needs review'}`}
         >
           <ConnectionRow
             icon="in"
@@ -308,14 +309,22 @@ export function SettingsView() {
           />
           <ConnectionRow
             icon="AI"
+            title="OpenRouter"
+            description="Free-only primary · Gemma 4 recommended"
+            status={
+              app.settings.providerValidation.openrouter.state === 'valid' ? 'Ready' : 'Review'
+            }
+          />
+          <ConnectionRow
+            icon="G"
             title="Gemini"
-            description="Primary provider for every writing workflow"
+            description="Second-stage free-tier fallback"
             status={app.settings.providerValidation.gemini.state === 'valid' ? 'Ready' : 'Review'}
           />
           <ConnectionRow
             icon="GQ"
             title="Groq"
-            description="Automatic fallback for every writing workflow"
+            description="Final Free Plan fallback"
             status={app.settings.providerValidation.groq.state === 'valid' ? 'Ready' : 'Review'}
           />
           <div className="flex justify-end border-t border-rule pt-3">
@@ -338,15 +347,25 @@ export function SettingsView() {
           <ApiKeysPanel app={app} onSave={saveApp} />
           <ImageConnectionPanel />
           <div className="rounded-lg border border-rule bg-soft p-3 text-[10.5px] leading-relaxed text-muted">
-            AI work is sent directly to Gemini, with one automatic Groq fallback. Free-tier handling
-            and retention follow your provider accounts.{' '}
+            AI work follows OpenRouter → Gemini → Groq. OpenRouter is restricted to curated free
+            model IDs. Gemini and Groq remain free only while the connected accounts stay on their
+            confirmed free tiers.{' '}
+            <a
+              className="text-proof underline"
+              href="https://openrouter.ai/docs/guides/routing/model-variants/free"
+              target="_blank"
+              rel="noreferrer"
+            >
+              OpenRouter free models <HugeIcon icon={LinkSquare01Icon} className="inline size-3" />
+            </a>
+            {' · '}
             <a
               className="text-proof underline"
               href="https://ai.google.dev/gemini-api/terms"
               target="_blank"
               rel="noreferrer"
             >
-              Gemini controls <ExternalLink className="inline size-3" />
+              Gemini controls <HugeIcon icon={LinkSquare01Icon} className="inline size-3" />
             </a>
             {' · '}
             <a
@@ -355,7 +374,7 @@ export function SettingsView() {
               target="_blank"
               rel="noreferrer"
             >
-              Groq controls <ExternalLink className="inline size-3" />
+              Groq controls <HugeIcon icon={LinkSquare01Icon} className="inline size-3" />
             </a>
           </div>
           <div className="flex items-center justify-between gap-3">
@@ -511,7 +530,7 @@ export function SettingsView() {
             </Field>
             <div className="rounded-lg border border-rule bg-soft p-3">
               <div className="flex items-center gap-2">
-                <FileText className="size-4 text-primary" />
+                <HugeIcon icon={File02Icon} className="size-4 text-primary" />
                 <strong className="text-xs">Import your LinkedIn PDF</strong>
               </div>
               <p className="mt-2 text-[10.5px] leading-relaxed text-muted">

@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { calibratedLayoutRecipeListSchema } from '../domain/calibration';
-import { appDataSchema, sourceNameSchema, type AppData, type SourceName } from '../domain/schemas';
+import {
+  appDataSchema,
+  parseAppDataWithMigration,
+  sourceNameSchema,
+  type AppData,
+  type ProviderName,
+  type SourceName,
+} from '../domain/schemas';
 import {
   IMAGE_PROVIDER_ORIGIN,
   LINKEDIN_ORIGIN,
@@ -24,6 +31,7 @@ const permissionStateSchema = z.object({
 });
 
 const secretsSchema = z.object({
+  openrouterApiKey: z.string().min(10).max(500).nullable(),
   geminiApiKey: z.string().min(10).max(500).nullable(),
   groqApiKey: z.string().min(10).max(500).nullable(),
   cloudflareImages: cloudflareImageCredentialsSchema.nullable(),
@@ -31,7 +39,7 @@ const secretsSchema = z.object({
 
 export const configurationBackupSchema = z.object({
   format: z.literal('thoughtline-configuration'),
-  version: z.literal(1),
+  version: z.literal(2),
   createdAt: z.iso.datetime(),
   extensionVersion: z.string().min(1).max(80),
   app: appDataSchema,
@@ -49,7 +57,7 @@ export async function exportConfiguration(app: AppData, includeSecrets: boolean)
   ]);
   const backup = configurationBackupSchema.parse({
     format: 'thoughtline-configuration',
-    version: 1,
+    version: 2,
     createdAt: new Date().toISOString(),
     extensionVersion: chrome.runtime.getManifest().version,
     app,
@@ -67,7 +75,7 @@ export async function readConfiguration(file: File): Promise<ConfigurationBackup
   } catch (error) {
     throw new AppError('invalid-input', 'The selected configuration is not valid JSON.', error);
   }
-  const parsed = configurationBackupSchema.safeParse(raw);
+  const parsed = configurationBackupSchema.safeParse(normalizeConfigurationBackup(raw));
   if (!parsed.success) {
     throw new AppError('invalid-input', 'This is not a supported Thoughtline configuration file.');
   }
@@ -84,8 +92,29 @@ export async function applyConfiguration(
   const next = structuredClone(backup.app);
   if (backup.secrets) {
     await replaceSecrets(backup.secrets);
+    for (const provider of ['openrouter', 'gemini', 'groq'] as const) {
+      const key = secretForProvider(backup.secrets, provider);
+      next.settings.providerValidation[provider] = {
+        state: key ? 'unvalidated' : 'missing',
+        credentialVersion:
+          current.settings.providerValidation[provider].credentialVersion + (key ? 1 : 0),
+      };
+    }
+    next.settings.aiRouting.zeroCostConfirmed = false;
   } else {
-    next.settings.providerValidation = current.settings.providerValidation;
+    for (const provider of ['openrouter', 'gemini', 'groq'] as const) {
+      next.settings.providerValidation[provider] =
+        next.settings.aiRouting.models[provider] === current.settings.aiRouting.models[provider]
+          ? current.settings.providerValidation[provider]
+          : {
+              state:
+                current.settings.providerValidation[provider].state === 'missing'
+                  ? 'missing'
+                  : 'unvalidated',
+              credentialVersion: current.settings.providerValidation[provider].credentialVersion,
+            };
+    }
+    next.settings.aiRouting.zeroCostConfirmed = current.settings.aiRouting.zeroCostConfirmed;
   }
 
   return { app: appDataSchema.parse(next), permissionsGranted };
@@ -163,12 +192,14 @@ function stringList(value: unknown): string[] {
 }
 
 async function readSecrets(): Promise<z.infer<typeof secretsSchema>> {
-  const [geminiApiKey, groqApiKey, cloudflare] = await Promise.all([
+  const [openrouterApiKey, geminiApiKey, groqApiKey, cloudflare] = await Promise.all([
+    credentialVault.get('openrouter'),
     credentialVault.get('gemini'),
     credentialVault.get('groq'),
     imageCredentialRepository.get(),
   ]);
   return secretsSchema.parse({
+    openrouterApiKey,
     geminiApiKey,
     groqApiKey,
     cloudflareImages: cloudflare
@@ -181,6 +212,9 @@ async function readSecrets(): Promise<z.infer<typeof secretsSchema>> {
 }
 
 async function replaceSecrets(secrets: z.infer<typeof secretsSchema>): Promise<void> {
+  if (secrets.openrouterApiKey) await credentialVault.save('openrouter', secrets.openrouterApiKey);
+  else await credentialVault.remove('openrouter');
+
   if (secrets.geminiApiKey) await credentialVault.save('gemini', secrets.geminiApiKey);
   else await credentialVault.remove('gemini');
 
@@ -189,4 +223,32 @@ async function replaceSecrets(secrets: z.infer<typeof secretsSchema>): Promise<v
 
   if (secrets.cloudflareImages) await imageCredentialRepository.save(secrets.cloudflareImages);
   else await imageCredentialRepository.remove();
+}
+
+function normalizeConfigurationBackup(value: unknown): unknown {
+  if (!value || typeof value !== 'object') return value;
+  const candidate = value as Record<string, unknown>;
+  if (candidate.format !== 'thoughtline-configuration' || candidate.version !== 1) return value;
+  const legacySecrets =
+    candidate.secrets && typeof candidate.secrets === 'object'
+      ? { openrouterApiKey: null, ...(candidate.secrets as Record<string, unknown>) }
+      : undefined;
+  try {
+    return {
+      ...candidate,
+      version: 2,
+      app: parseAppDataWithMigration(candidate.app),
+      ...(legacySecrets ? { secrets: legacySecrets } : {}),
+    };
+  } catch {
+    return value;
+  }
+}
+
+function secretForProvider(
+  secrets: z.infer<typeof secretsSchema>,
+  provider: ProviderName,
+): string | null {
+  if (provider === 'openrouter') return secrets.openrouterApiKey;
+  return provider === 'gemini' ? secrets.geminiApiKey : secrets.groqApiKey;
 }

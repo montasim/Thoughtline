@@ -6,6 +6,7 @@ import {
   rewriteContent,
 } from '../../src/application/workflows';
 import { defaultAppData, type PostContext, type SourceEvidence } from '../../src/domain/schemas';
+import { storageRepository } from '../../src/infrastructure/storage/chrome-storage';
 import { credentialVault } from '../../src/infrastructure/storage/credential-vault';
 import {
   evaluatePostQuality,
@@ -14,15 +15,21 @@ import {
   failedChecks,
 } from '../helpers/response-quality';
 
+const openrouterKey = process.env.THOUGHTLINE_OPENROUTER_API_KEY;
 const geminiKey = process.env.THOUGHTLINE_GEMINI_API_KEY;
 const groqKey = process.env.THOUGHTLINE_GROQ_API_KEY;
-const enabled = process.env.THOUGHTLINE_RUN_LIVE_AI_EVALS === '1' && geminiKey && groqKey;
+const enabled =
+  process.env.THOUGHTLINE_RUN_LIVE_AI_EVALS === '1' && openrouterKey && geminiKey && groqKey;
 
 describe.skipIf(!enabled)('live AI response quality', () => {
   beforeAll(() => {
-    vi.spyOn(credentialVault, 'get').mockImplementation((provider) =>
-      Promise.resolve(provider === 'gemini' ? (geminiKey ?? null) : (groqKey ?? null)),
-    );
+    vi.spyOn(credentialVault, 'get').mockImplementation((provider) => {
+      if (provider === 'openrouter') return Promise.resolve(openrouterKey ?? null);
+      return Promise.resolve(provider === 'gemini' ? (geminiKey ?? null) : (groqKey ?? null));
+    });
+    const liveApp = structuredClone(defaultAppData);
+    liveApp.settings.aiRouting.zeroCostConfirmed = true;
+    vi.spyOn(storageRepository, 'loadAppData').mockResolvedValue(liveApp);
   });
 
   afterAll(() => vi.restoreAllMocks());

@@ -8,8 +8,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 describe('approved prototype reference', () => {
   it('points to the newest immutable prototype snapshot', async () => {
     await expect(approvedPrototype(root)).resolves.toMatchObject({
-      approvedVersion: 6,
-      file: 'simplified-ui-v6.html',
+      approvedVersion: 7,
+      file: 'simplified-ui-v7.html',
     });
   });
 });

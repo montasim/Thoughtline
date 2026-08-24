@@ -221,6 +221,22 @@ test('matches the approved Refine compose rhythm', async () => {
   await expect(page.getByRole('alert')).toContainText('Paste between 1 and 12,000 characters');
 });
 
+test('matches the manual Reply compose rhythm', async () => {
+  const session = visualSession('reply');
+  session.activeRecordId = undefined;
+  session.analysis = { status: 'idle' };
+  session.replyCompose = { postText: '' };
+  await seedState(visualAppData(), session);
+
+  await expect(page.getByRole('heading', { name: 'Reply to a post' })).toBeVisible();
+  await expect(page.getByLabel('LinkedIn post')).toHaveAttribute(
+    'placeholder',
+    /Paste the LinkedIn/u,
+  );
+  await expect(page.getByRole('button', { name: 'Create reply options' })).toBeEnabled();
+  await expect(page).toHaveScreenshot('reply-compose.png');
+});
+
 test('derives Refine copy and geometry from the approved prototype', async () => {
   if (!context) throw new Error('Browser context unavailable');
   const reference = await approvedPrototype(root);

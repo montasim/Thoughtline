@@ -20,7 +20,7 @@ describe('setup readiness guidance', () => {
         label: 'AI services',
         ready: false,
         detail:
-          'Allow Gemini and Groq connections · Validate the Gemini API key · Validate the Groq API key',
+          'Allow OpenRouter, Gemini, and Groq connections · Validate the OpenRouter API key · Validate the Gemini API key · Validate the Groq API key · Confirm the zero-cost AI route',
       }),
       expect.objectContaining({
         label: 'Writing profile',

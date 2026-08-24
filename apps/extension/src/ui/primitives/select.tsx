@@ -1,6 +1,7 @@
 import { Select } from 'radix-ui';
-import { Check, ChevronDown } from 'lucide-react';
+import { ArrowDown01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import type { ComponentProps, ReactNode } from 'react';
+import { HugeIcon } from '../components/huge-icon';
 import { cn } from '../lib/cn';
 
 export const SelectRoot = Select.Root;
@@ -20,7 +21,7 @@ export function SelectTrigger({
     >
       {children}
       <Select.Icon>
-        <ChevronDown className="size-4" />
+        <HugeIcon icon={ArrowDown01Icon} className="size-4" />
       </Select.Icon>
     </Select.Trigger>
   );
@@ -57,7 +58,7 @@ export function SelectItem({
     >
       <span className="absolute left-2">
         <Select.ItemIndicator>
-          <Check className="size-4" />
+          <HugeIcon icon={Tick02Icon} className="size-4" />
         </Select.ItemIndicator>
       </span>
       <Select.ItemText className={detail ? 'w-full' : undefined}>

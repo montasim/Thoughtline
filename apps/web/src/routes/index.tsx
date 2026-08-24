@@ -1,5 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ArrowDownIcon, ArrowRightIcon, ArrowUpRightIcon, CheckIcon } from 'lucide-react';
+import {
+  ArrowDown01Icon,
+  ArrowRight01Icon,
+  ArrowUpRight01Icon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
 
 import { BrandMark } from '#/components/brand-mark';
 import { ProductPreview } from '#/components/product-preview';
@@ -12,6 +17,7 @@ import {
   AccordionTrigger,
 } from '#/components/ui/accordion';
 import { Button } from '#/components/ui/button';
+import { HugeIcon } from '#/components/ui/huge-icon';
 import { WorkflowLine } from '#/components/workflow-line';
 
 export const Route = createFileRoute('/')({ component: Home });
@@ -22,8 +28,8 @@ const repositoryUrl = 'https://github.com/montasim/Thoughtline';
 const workflow = [
   {
     label: 'Choose the context',
-    title: 'Right-click what matters.',
-    body: 'Select one visible post, comment, or reply. Thoughtline stays inside that boundary.',
+    title: 'Paste or right-click.',
+    body: 'Paste a post, or select one visible post, comment, or reply. Thoughtline stays inside that boundary.',
     className: 'lg:pt-0',
   },
   {
@@ -49,12 +55,12 @@ const faqs = [
   {
     question: 'Does it scan my LinkedIn feed?',
     answer:
-      'No. It reads only the already-visible post, comment, or reply you explicitly choose from Chrome’s context menu.',
+      'No. It reads only the text you paste or the already-visible post, comment, or reply you explicitly choose from Chrome’s context menu.',
   },
   {
     question: 'What do I need to use it?',
     answer:
-      'Chrome 120 or later, LinkedIn page permission, and your own valid Gemini and Groq API keys for primary generation and fallback. Built-in setup guides link directly to each provider’s credential page.',
+      'Chrome 120 or later and your own valid OpenRouter, Gemini, and Groq API keys. Thoughtline uses only curated free OpenRouter models, then eligible Gemini and Groq fallbacks after one explicit zero-cost confirmation. LinkedIn page permission is needed only for right-click workflows.',
   },
   {
     question: 'Can I restore my setup after reinstalling?',
@@ -91,12 +97,12 @@ function Home() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button asChild>
                 <a href={releaseUrl} target="_blank" rel="noreferrer">
-                  Get for Chrome <ArrowUpRightIcon />
+                  Get for Chrome <HugeIcon icon={ArrowUpRight01Icon} />
                 </a>
               </Button>
               <Button asChild variant="outline">
                 <a href="#how-it-works">
-                  See how it works <ArrowDownIcon />
+                  See how it works <HugeIcon icon={ArrowDown01Icon} />
                 </a>
               </Button>
             </div>
@@ -115,7 +121,7 @@ function Home() {
                 key={boundary}
                 className={`flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] ${index === 0 ? 'sm:pr-6' : index === 1 ? 'sm:px-6' : 'sm:pl-6'}`}
               >
-                <CheckIcon className="size-3 text-[#9ed0ca]" /> {boundary}
+                <HugeIcon icon={Tick02Icon} className="size-3 text-[#9ed0ca]" /> {boundary}
               </p>
             ))}
           </div>
@@ -180,6 +186,14 @@ function Home() {
                   <Feature title="Refine rough writing">
                     Paste a draft or reshape a selected post through your confirmed perspective and
                     voice.
+                  </Feature>
+                  <Feature title="Reply from pasted text">
+                    Paste a LinkedIn post and explore the same four editable directions without
+                    opening the context menu.
+                  </Feature>
+                  <Feature title="Keep the AI route visible">
+                    Choose curated free models, fall back from OpenRouter to Gemini and Groq, and
+                    see which provider and model produced each draft.
                   </Feature>
                   <Feature title="Research source-backed ideas">
                     Find promising ideas across public sources, with a link back to every original
@@ -248,7 +262,7 @@ function Home() {
                 rel="noreferrer"
                 className="mt-8 inline-flex items-center font-semibold underline decoration-[#8dc6c0] decoration-2 underline-offset-8 hover:text-[#dff5f2]"
               >
-                Read the privacy policy <ArrowRightIcon className="ml-2 size-4" />
+                Read the privacy policy <HugeIcon icon={ArrowRight01Icon} className="ml-2 size-4" />
               </a>
             </Reveal>
 
@@ -285,7 +299,7 @@ function Home() {
               </p>
               <Button asChild className="mt-8">
                 <a href={releaseUrl} target="_blank" rel="noreferrer">
-                  Download latest release <ArrowUpRightIcon />
+                  Download latest release <HugeIcon icon={ArrowUpRight01Icon} />
                 </a>
               </Button>
             </div>
@@ -345,7 +359,7 @@ function Home() {
                 className="border-white bg-white text-brand-strong hover:bg-[#eaf3f2]"
               >
                 <a href={releaseUrl} target="_blank" rel="noreferrer">
-                  Get for Chrome <ArrowUpRightIcon />
+                  Get for Chrome <HugeIcon icon={ArrowUpRight01Icon} />
                 </a>
               </Button>
             </div>

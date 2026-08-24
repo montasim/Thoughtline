@@ -12,7 +12,9 @@ Thoughtline is designed as a local-first, user-initiated writing tool. It does n
 
 ## Data sent outside the browser
 
-A user must accept AI processing consent before content work can run. For an explicit foreground task, Thoughtline sends a bounded, validated data envelope directly to Google's Gemini API. If Gemini has an eligible credential, quota, availability, transport, model, or structured-response failure, the same request is sent once to Groq. No further retry occurs.
+A user must accept AI processing consent before content work can run. For an explicit foreground task, Thoughtline sends a bounded, validated data envelope to the user's selected curated OpenRouter `:free` model. If a stage has an eligible credential, quota, availability, transport, model, or structured-response failure, the same request is sent to Gemini and then Groq. Each stage is tried once, apart from one local-schema-guided repair attempt for models that lack native schema enforcement.
+
+Thoughtline validates that an OpenRouter selection still has a zero-priced catalog entry before marking it ready and never offers a paid OpenRouter model. Gemini and Groq API keys do not expose a reliable billing-status check, so those stages remain blocked until the user confirms that Gemini billing is disabled and the Groq organization is on Free Plan. Users must keep those account controls unchanged to preserve zero-cost operation.
 
 Depending on the task, that envelope can contain visible names and text from the selected LinkedIn context, a pasted draft, selected source evidence, profile fields, user-owned writing samples, custom instructions, and accepted learned preferences. It never contains raw DOM, HTML, browser history, cookies, credentials, hidden LinkedIn content, or unrelated feed posts.
 
@@ -26,6 +28,6 @@ The LinkedIn permission allows a registered content script to respond to an expl
 
 ## User controls
 
-Users can revoke AI consent, remove either provider key, disable public sources, reset learned preferences, delete individual History entries, clear all History after confirmation, set retention limits, and export or import a local Data Archive. Disabling a source stops future access but intentionally does not revoke Chrome's previously granted host permission.
+Users can revoke AI consent, remove any provider key, change a curated model, disable public sources, reset learned preferences, delete individual History entries, clear all History after confirmation, set retention limits, and export or import a local Data Archive or complete configuration backup. Disabling a source stops future access but intentionally does not revoke Chrome's previously granted host permission.
 
 Scheduling is currently preview-only. No schedule account, remote job, synchronization, or email notification is created by this version.

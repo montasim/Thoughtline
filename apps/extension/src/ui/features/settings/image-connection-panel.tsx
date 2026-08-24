@@ -1,4 +1,4 @@
-import { Eye, EyeOff, ImagePlus } from 'lucide-react';
+import { ImageAdd01Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useState } from 'react';
 import { toAppError } from '../../../application/errors';
 import { imageModelRegistry } from '../../../application/image-model-registry';
@@ -18,6 +18,7 @@ import { Button } from '../../primitives/button';
 import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
 import { CredentialSetupGuide } from './credential-setup-guide';
+import { HugeIcon } from '../../components/huge-icon';
 
 export function ImageConnectionPanel() {
   const [accountId, setAccountId] = useState('');
@@ -105,7 +106,7 @@ export function ImageConnectionPanel() {
         <AccordionItem value="image-connection">
           <AccordionTrigger>
             <span className="flex items-center gap-2">
-              <ImagePlus className="size-4 text-primary" />
+              <HugeIcon icon={ImageAdd01Icon} className="size-4 text-primary" />
               Image generation
               <span className="font-normal text-muted">
                 · {hasStored ? 'Connected' : 'Optional'}
@@ -152,7 +153,10 @@ export function ImageConnectionPanel() {
                   onClick={() => void revealAccountId()}
                   className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-primary focus-visible:outline-2 focus-visible:outline-focus"
                 >
-                  {accountIdVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  <HugeIcon
+                    icon={accountIdVisible ? ViewOffSlashIcon : ViewIcon}
+                    className="size-4"
+                  />
                 </button>
               </div>
             </FieldGroup>
@@ -188,7 +192,7 @@ export function ImageConnectionPanel() {
                   onClick={() => void revealSaved()}
                   className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-primary focus-visible:outline-2 focus-visible:outline-focus"
                 >
-                  {tokenVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  <HugeIcon icon={tokenVisible ? ViewOffSlashIcon : ViewIcon} className="size-4" />
                 </button>
               </div>
             </FieldGroup>

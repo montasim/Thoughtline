@@ -37,7 +37,7 @@ A device-local, user-confirmed description of how Thoughtline can recognize visi
 _Avoid_: Model training, provider training, shared selector, saved LinkedIn content
 
 **AI-Assisted Layout Calibration**:
-An explicit Foreground AI Job that sends user-approved Calibration Evidence to Gemini and, when Cross-Provider Fallback applies, Groq to propose a Calibrated Layout Recipe. The proposal remains device-local and cannot persist until it passes the same local multi-example validation and Calibration Preview as deterministic Layout Calibration.
+An explicit Foreground AI Job that sends user-approved Calibration Evidence through the configured OpenRouter → Gemini → Groq route to propose a Calibrated Layout Recipe. The proposal remains device-local and cannot persist until it passes the same local multi-example validation and Calibration Preview as deterministic Layout Calibration.
 _Avoid_: Model training, automatic calibration, uploaded recipe, AI-approved selector
 
 **Calibration Evidence**:
@@ -45,7 +45,7 @@ A transient, strictly bounded text representation of the visible DOM neighborhoo
 _Avoid_: Page DOM, HTML dump, feed capture, Post Context
 
 **Calibration Evidence Review**:
-The mandatory per-request inspection of the exact Calibration Evidence proposed for Gemini and possible Groq fallback, including its outlined scope, provider path, and size. One explicit confirmation authorizes the Gemini request and at most one Groq fallback with identical evidence; nothing is sent before confirmation.
+The mandatory per-request inspection of the exact Calibration Evidence proposed for the configured OpenRouter → Gemini → Groq route, including its outlined scope, provider path, and size. One explicit confirmation authorizes the selected free OpenRouter model and eligible later-stage fallbacks with identical evidence; nothing is sent before confirmation.
 _Avoid_: Onboarding consent, Calibration Preview, automatic provider request
 
 **Calibration Proposal**:
@@ -73,8 +73,8 @@ The state in which Thoughtline's built-in extraction and every applicable Calibr
 _Avoid_: Built-in priority, calibration override, highest score
 
 **Cross-Provider Fallback**:
-One automatic retry of the same validated AI request through Groq after a Gemini-specific availability, credential, transport, quota, model, or provider-response-schema failure. A well-formed Calibration Proposal that later fails trusted local DOM validation produces Calibration Ambiguity instead of fallback.
-_Avoid_: Infinite retry, same-provider retry, local-validation override, silent data repair
+The fixed OpenRouter → Gemini → Groq route for one validated AI request. Each later stage is attempted once after an earlier provider-specific availability, credential, transport, quota, model, or response-schema failure. A model adapter may make one schema-repair request before leaving its stage. A well-formed Calibration Proposal that later fails trusted local DOM validation produces Calibration Ambiguity instead of fallback.
+_Avoid_: Paid routing, infinite retry, local-validation override, silent data repair
 
 **Analysis Request**:
 One explicit user instruction, initiated from Chrome’s context menu, to turn one validated Post Context into a summary and four editable reply directions.
@@ -85,7 +85,7 @@ One provider-bound task started by the user inside the extension, covering reply
 _Avoid_: UI action, background schedule, provider request
 
 **AI Processing Consent**:
-The user's explicit, revocable permission for Thoughtline to send the minimum content needed for a requested Foreground AI Job directly to Gemini and, when Cross-Provider Fallback applies, to Groq. AI-Assisted Layout Calibration additionally requires a per-request Calibration Evidence Review.
+The user's explicit, revocable permission for Thoughtline to send the minimum content needed for a requested Foreground AI Job to OpenRouter and, when Cross-Provider Fallback applies, Gemini then Groq. AI-Assisted Layout Calibration additionally requires a per-request Calibration Evidence Review.
 _Avoid_: API key, LinkedIn permission, scheduling-service account
 
 **Context Overflow**:
@@ -117,12 +117,12 @@ A user-created portable snapshot of Thoughtline's local Work History, writing pr
 _Avoid_: Cloud backup, credential export, Diagnostic Bundle
 
 **Provider Credential**:
-A user-supplied Gemini or Groq API key retained as device-bound encrypted data and made available only to trusted extension contexts for an explicit AI workflow.
+A user-supplied OpenRouter, Gemini, or Groq API key retained as device-bound encrypted data and made available only to trusted extension contexts for an explicit AI workflow.
 _Avoid_: Account password, server credential, plaintext setting
 
 **Provider Readiness**:
-The state in which valid Gemini and Groq Provider Credentials are both available, allowing Gemini-primary Foreground AI Jobs with Cross-Provider Fallback.
-_Avoid_: Gemini-only mode, Groq-only mode, partially configured
+The state in which valid OpenRouter, Gemini, and Groq Provider Credentials, curated model choices, and one explicit zero-cost route confirmation are available, allowing zero-cost-first Foreground AI Jobs with Cross-Provider Fallback.
+_Avoid_: Paid routing, single-provider mode, partially configured
 
 **Setup Readiness**:
 The state in which AI Processing Consent, LinkedIn page permission, Provider Readiness, and the required role, topics, and audience profile fields are complete.

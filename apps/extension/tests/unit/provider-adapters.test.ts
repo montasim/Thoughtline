@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { GeminiProvider } from '../../src/infrastructure/providers/gemini-provider';
 import { GroqProvider } from '../../src/infrastructure/providers/groq-provider';
+import { OpenRouterProvider } from '../../src/infrastructure/providers/openrouter-provider';
 
 const schema = z.object({ answer: z.string() });
 const request = {
@@ -12,8 +13,130 @@ const request = {
   maxOutputTokens: 100,
 };
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
+function requestBody(init?: RequestInit): Record<string, unknown> {
+  if (typeof init?.body !== 'string') throw new Error('Expected a JSON request body.');
+  return JSON.parse(init.body) as Record<string, unknown>;
+}
+
 describe('AI provider adapters', () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it('validates that the selected OpenRouter model remains free and structured-output capable', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = requestUrl(input);
+      if (url.endsWith('/key')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ data: { is_free_tier: false } }), { status: 200 }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'google/gemma-4-31b-it:free',
+                pricing: { prompt: '0', completion: '0' },
+                supported_parameters: ['response_format'],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new OpenRouterProvider().validateConnection('openrouter-key-123'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('blocks an OpenRouter model if its catalog pricing is no longer zero', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) =>
+        Promise.resolve(
+          requestUrl(input).endsWith('/key')
+            ? new Response(JSON.stringify({ data: { is_free_tier: false } }), { status: 200 })
+            : new Response(
+                JSON.stringify({
+                  data: [
+                    {
+                      id: 'google/gemma-4-31b-it:free',
+                      pricing: { prompt: '0.1', completion: '0' },
+                      supported_parameters: ['response_format'],
+                    },
+                  ],
+                }),
+                { status: 200 },
+              ),
+        ),
+      ),
+    );
+
+    await expect(
+      new OpenRouterProvider().validateConnection('openrouter-key-123'),
+    ).rejects.toMatchObject({
+      code: 'provider-unavailable',
+      message: 'Thoughtline blocked this OpenRouter model because it is not currently free.',
+    });
+  });
+
+  it('uses Gemma JSON mode, validates locally, and repairs one invalid candidate', async () => {
+    let attempt = 0;
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      attempt += 1;
+      const body = requestBody(init);
+      expect(body).toMatchObject({
+        model: 'google/gemma-4-31b-it:free',
+        response_format: { type: 'json_object' },
+      });
+      expect(JSON.stringify(body)).toContain('UNTRUSTED_CONTENT_JSON');
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            choices: [
+              { message: { content: attempt === 1 ? '{"answer":42}' : '{"answer":"ready"}' } },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new OpenRouterProvider().generateStructured('openrouter-key-123', request),
+    ).resolves.toEqual({ answer: 'ready' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses JSON Schema mode for a schema-capable OpenRouter free model', async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = requestBody(init);
+      expect(body).toMatchObject({
+        model: 'z-ai/glm-5.2:free',
+        response_format: { type: 'json_schema', json_schema: { strict: true } },
+      });
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: '{"answer":"ready"}' } }] }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new OpenRouterProvider('z-ai/glm-5.2:free').generateStructured('openrouter-key-123', request),
+    ).resolves.toEqual({ answer: 'ready' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 
   it('validates Gemini access through model metadata without generating content', async () => {
     const fetchMock = vi.fn(() =>

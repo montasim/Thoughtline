@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Check, Download, Upload } from 'lucide-react';
+import { Download04Icon, Tick02Icon, Upload04Icon } from '@hugeicons/core-free-icons';
 import {
   applyConfiguration,
   exportConfiguration,
@@ -18,6 +18,7 @@ import { Button } from '../../primitives/button';
 import { DialogClose, DialogContent, DialogRoot, DialogTrigger } from '../../primitives/dialog';
 import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
+import { HugeIcon } from '../../components/huge-icon';
 
 export function ConfigurationBackupDialogs({
   app,
@@ -91,7 +92,7 @@ function ExportConfigurationDialog({ app }: { app: AppData }) {
     >
       <DialogTrigger asChild>
         <Button>
-          <Download className="size-4" />
+          <HugeIcon icon={Download04Icon} className="size-4" />
           Export
         </Button>
       </DialogTrigger>
@@ -101,8 +102,8 @@ function ExportConfigurationDialog({ app }: { app: AppData }) {
       >
         <div className="space-y-4">
           <p className="text-[10.5px] leading-relaxed text-muted">
-            Includes settings, permissions, profile, preferences, History, provider status, and
-            calibrated layouts.
+            Includes settings, permissions, profile, preferences, History, the selected OpenRouter →
+            Gemini → Groq models, provider status, and calibrated layouts.
           </p>
           <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-rule bg-soft p-3 text-xs leading-relaxed">
             <input
@@ -202,7 +203,7 @@ export function ImportConfigurationDialog({
     >
       <DialogTrigger asChild>
         <Button>
-          <Upload className="size-4" />
+          <HugeIcon icon={Upload04Icon} className="size-4" />
           {triggerLabel}
         </Button>
       </DialogTrigger>
@@ -217,7 +218,7 @@ export function ImportConfigurationDialog({
           >
             <div className="flex items-start gap-3">
               <span className="grid size-8 shrink-0 place-items-center rounded-full bg-proof text-white">
-                <Check className="size-4" aria-hidden="true" />
+                <HugeIcon icon={Tick02Icon} className="size-4" aria-hidden="true" />
               </span>
               <div>
                 <strong className="text-xs">Configuration imported</strong>
@@ -259,6 +260,11 @@ export function ImportConfigurationDialog({
                   Exported {new Date(preview.createdAt).toLocaleString()} ·{' '}
                   {String(preview.app.history.length)} History records ·{' '}
                   {preview.secrets ? 'includes secrets' : 'keeps secrets already on this device'}
+                </p>
+                <p className="text-[10.5px] leading-relaxed text-muted">
+                  Route: {preview.app.settings.aiRouting.models.openrouter} →{' '}
+                  {preview.app.settings.aiRouting.models.gemini} →{' '}
+                  {preview.app.settings.aiRouting.models.groq}
                 </p>
                 <p className="text-[10.5px] leading-relaxed text-muted">
                   Imported values replace the current settings, profile, preferences, History, and
@@ -316,7 +322,7 @@ function ExportDataDialog({ app }: { app: AppData }) {
     <DialogRoot>
       <DialogTrigger asChild>
         <Button>
-          <Download className="size-4" />
+          <HugeIcon icon={Download04Icon} className="size-4" />
           Export data
         </Button>
       </DialogTrigger>
@@ -415,7 +421,7 @@ function ImportDataDialog({
     >
       <DialogTrigger asChild>
         <Button>
-          <Upload className="size-4" />
+          <HugeIcon icon={Upload04Icon} className="size-4" />
           Import data
         </Button>
       </DialogTrigger>

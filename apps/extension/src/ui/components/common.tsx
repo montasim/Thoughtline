@@ -1,10 +1,20 @@
-import { Check, Copy, Info, RefreshCw, ThumbsDown, ThumbsUp } from 'lucide-react';
+import {
+  Copy01Icon,
+  InformationCircleIcon,
+  RefreshIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { modelRegistry } from '../../application/model-registry';
+import type { ProviderName } from '../../domain/schemas';
 import { cn } from '../lib/cn';
 import { Button } from '../primitives/button';
 import { Card } from '../primitives/card';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../primitives/tabs';
 import { TooltipRoot } from '../primitives/tooltip';
+import { HugeIcon } from './huge-icon';
 
 export function PageHeading({
   title,
@@ -66,7 +76,11 @@ export function InfoButton({ label }: { label: string }) {
         aria-label={label}
         className="grid size-[18px] shrink-0 cursor-help place-items-center text-muted hover:text-primary focus-visible:text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
       >
-        <Info className="size-[11px] translate-y-px" strokeWidth={2} />
+        <HugeIcon
+          icon={InformationCircleIcon}
+          className="size-[11px] translate-y-px"
+          strokeWidth={2}
+        />
       </button>
     </TooltipRoot>
   );
@@ -90,6 +104,36 @@ export function StatusBadge({
     >
       {children}
     </span>
+  );
+}
+
+const PROVIDER_LABELS: Record<ProviderName, string> = {
+  openrouter: 'OpenRouter',
+  gemini: 'Gemini',
+  groq: 'Groq',
+};
+
+export function ModelProvenance({
+  provider,
+  model,
+}: {
+  provider: ProviderName;
+  model: string | undefined;
+}) {
+  const configuredModel = model
+    ? modelRegistry[provider].find((candidate) => candidate.model === model)
+    : undefined;
+  const modelLabel = configuredModel?.label.split(' — ')[0] ?? model;
+
+  return (
+    <p
+      className="mt-2 border-t border-rule/80 pt-2 font-utility text-[9.5px] leading-relaxed text-muted"
+      aria-label="AI model used"
+    >
+      Made with{' '}
+      <strong className="font-semibold text-ink">{modelLabel ?? PROVIDER_LABELS[provider]}</strong>
+      {modelLabel ? ` via ${PROVIDER_LABELS[provider]}` : ''}
+    </p>
   );
 }
 
@@ -201,7 +245,7 @@ export function EditorActions({
         data-animating={ratingPulse === 'liked' || undefined}
         onClick={() => rate('liked')}
       >
-        <ThumbsUp className="size-[17px]" />
+        <HugeIcon icon={ThumbsUpIcon} className="size-[17px]" />
       </Button>
       <Button
         className="editor-action-button"
@@ -212,7 +256,7 @@ export function EditorActions({
         data-animating={ratingPulse === 'disliked' || undefined}
         onClick={() => rate('disliked')}
       >
-        <ThumbsDown className="size-[17px]" />
+        <HugeIcon icon={ThumbsDownIcon} className="size-[17px]" />
       </Button>
       {onRegenerate ? (
         <Button
@@ -223,7 +267,7 @@ export function EditorActions({
           onClick={regenerate}
           disabled={!canRegenerate}
         >
-          <RefreshCw className="size-[17px]" />
+          <HugeIcon icon={RefreshIcon} className="size-[17px]" />
         </Button>
       ) : null}
       <Button
@@ -234,7 +278,7 @@ export function EditorActions({
         data-copied={copied || undefined}
         onClick={() => void copy()}
       >
-        {copied ? <Check className="size-[17px]" /> : <Copy className="size-[17px]" />}
+        <HugeIcon icon={copied ? Tick02Icon : Copy01Icon} className="size-[17px]" />
       </Button>
       <span className="sr-only" aria-live="polite">
         {copied ? 'Copied to clipboard' : ''}

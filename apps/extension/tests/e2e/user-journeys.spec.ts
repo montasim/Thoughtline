@@ -73,6 +73,63 @@ test('a writer can refine pasted content, choose a custom goal, and resume after
   );
 });
 
+test('a writer can paste a LinkedIn post and create four reply directions', async () => {
+  const session = visualSession('reply');
+  session.activeRecordId = undefined;
+  session.analysis = { status: 'idle' };
+  session.replyCompose = { postText: '' };
+  await seedState(visualAppData(), session);
+  await seedCredentials();
+
+  const pastedPost =
+    'Our migration reviews improved when we named the riskiest boundary before discussing tools.';
+  await page.getByLabel('LinkedIn post').fill(pastedPost);
+  await expect.poll(async () => (await readSession()).replyCompose.postText).toBe(pastedPost);
+
+  await reload();
+  await expect(page.getByLabel('LinkedIn post')).toHaveValue(pastedPost);
+  await page.getByRole('button', { name: 'Create reply options' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Replying to a pasted post' })).toBeVisible();
+  for (const direction of ['Insight', 'Question', 'Extend', 'Challenge']) {
+    await expect(page.getByRole('tab', { name: direction })).toBeVisible();
+  }
+  await expect(page.getByLabel('Editable reply')).toContainText('Naming the boundary first');
+  await expect(page.getByLabel('AI model used')).toContainText(
+    'Made with Gemini 3.5 Flash via Gemini',
+  );
+  await expect(page.getByText('Pasted manually')).toBeVisible();
+  await expect
+    .poll(async () => {
+      const reply = (await readApp()).history.find(
+        (record) => record.type === 'reply' && record.mode === 'manual',
+      );
+      return reply?.type === 'reply'
+        ? {
+            directions: reply.directions.length,
+            source: reply.source.author,
+            retainedText: reply.source.manualText,
+          }
+        : null;
+    })
+    .toEqual({ directions: 4, source: 'Pasted LinkedIn post', retainedText: pastedPost });
+
+  await page.getByRole('button', { name: 'New reply' }).click();
+  await expect(page.getByRole('heading', { name: 'Reply to a post' })).toBeVisible();
+  await expect(page.getByLabel('LinkedIn post')).toHaveValue('');
+});
+
+test('selecting the Reply tab opens the manual reply composer', async () => {
+  await seed('reply');
+  await expect(page.getByLabel('Editable reply')).toBeVisible();
+
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await page.getByRole('button', { name: 'Reply', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Reply to a post' })).toBeVisible();
+  await expect(page.getByLabel('LinkedIn post')).toHaveValue('');
+});
+
 test('a writer with validated credentials can complete a refinement', async () => {
   const session = visualSession('generate');
   session.activeRecordId = undefined;
@@ -84,6 +141,9 @@ test('a writer with validated credentials can complete a refinement', async () =
   await page.getByRole('button', { name: 'Refine content' }).click();
 
   await expect(page.getByRole('heading', { name: 'Your refined version' })).toBeVisible();
+  await expect(page.getByLabel('AI model used')).toContainText(
+    'Made with Gemini 3.5 Flash via Gemini',
+  );
   await expect(page.getByRole('button', { name: 'Generate image' })).toBeVisible();
   const editableRefinement = page.getByLabel('Editable refinement');
   const refinedText = await editableRefinement.inputValue();
@@ -173,6 +233,9 @@ test('a writer can confirm a captured LinkedIn post and create a profile-grounde
   await createVersion.click();
 
   await expect(page.getByRole('heading', { name: 'Your version is ready' })).toBeVisible();
+  await expect(page.getByLabel('AI model used')).toContainText(
+    'Made with Gemini 3.5 Flash via Gemini',
+  );
   await expect(page.getByRole('button', { name: 'Generate image' })).toBeVisible();
   const groundingItem = page.getByRole('button', { name: 'Grounding report' }).locator('../..');
   const sourceItem = page
@@ -247,6 +310,9 @@ test('a writer can turn a real lesson into an AI-assisted evergreen post', async
 
   await expect(page.getByRole('heading', { name: 'Your post' })).toBeVisible();
   await expect(page.getByLabel('Editable post')).toHaveValue(/risk boundary/u);
+  await expect(page.getByLabel('AI model used')).toContainText(
+    'Made with Gemini 3.5 Flash via Gemini',
+  );
   await expect
     .poll(async () => (await readApp()).history.filter((record) => record.type === 'idea').length)
     .toBe(2);
@@ -310,6 +376,39 @@ test('an unsupported LinkedIn boundary offers direct on-device calibration', asy
     page.getByText('Nothing was sent to an AI provider.', { exact: false }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Calibrate selected post' })).toBeVisible();
+});
+
+test('a reply job that cannot start shows an error instead of preparing forever', async () => {
+  const lockPage = await context!.newPage();
+  await lockPage.goto(page.url());
+  await lockPage.evaluate(() => {
+    void navigator.locks.request('thoughtline:claim-foreground-job', async () => {
+      sessionStorage.setItem('thoughtline.test-lock-held', 'true');
+      await new Promise(() => undefined);
+    });
+  });
+  await expect
+    .poll(() => lockPage.evaluate(() => sessionStorage.getItem('thoughtline.test-lock-held')))
+    .toBe('true');
+
+  try {
+    const session = visualSession('reply');
+    session.activeRecordId = undefined;
+    session.analysis = {
+      status: 'pending',
+      requestId: '20000000-0000-4000-8000-000000000009',
+      tabId: 7,
+      frameId: 0,
+      requestedAt: '2026-08-24T04:00:00.000Z',
+    };
+    await seedState(visualAppData(), session);
+
+    await expect(page.getByRole('heading', { name: 'Another activity is running' })).toBeVisible();
+    await expect(page.getByText('Another Thoughtline activity is already running.')).toBeVisible();
+    await expect(page.getByText('Preparing analysis')).toHaveCount(0);
+  } finally {
+    await lockPage.close();
+  }
 });
 
 test('a writer can choose, edit, rate, and reopen a reply direction', async () => {
@@ -472,6 +571,7 @@ async function seedCredentials() {
   await page.evaluate(async () => {
     await chrome.storage.session.set({
       'thoughtline.session-credentials': {
+        openrouter: 'test-openrouter-key',
         gemini: 'test-gemini-key',
         groq: 'test-groq-key',
       },
@@ -480,6 +580,14 @@ async function seedCredentials() {
 }
 
 async function installProviderRoutes(browserContext: BrowserContext) {
+  await browserContext.route('https://openrouter.ai/api/v1/**', async (route) => {
+    await route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { message: 'Free model limit reached in test.' } }),
+    });
+  });
+
   await browserContext.route('https://generativelanguage.googleapis.com/**', async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
@@ -494,22 +602,63 @@ async function installProviderRoutes(browserContext: BrowserContext) {
     const refineHashtags =
       '#Architecture #SoftwareEngineering #DecisionMaking #TechLeadership #EngineeringCulture';
     const output =
-      'rewrite' in properties
+      'directions' in properties
         ? {
-            rewrite: systemInstruction.includes('Use the source post only as raw material')
-              ? 'Your post offers a useful analysis of architecture decisions.'
-              : `**The review succeeded**, but its trade-off remained implicit.\n\n${refineHashtags}`,
-          }
-        : 'text' in properties
-          ? { text: 'A fresh grounded reply for the selected direction.' }
-          : {
-              summary: {
-                english: 'Naming the riskiest boundary first reduced migration review churn.',
-                bangla: 'সবচেয়ে ঝুঁকিপূর্ণ সীমা আগে চিহ্নিত করায় মাইগ্রেশন রিভিউ সহজ হয়েছে।',
+            title: 'Boundary-first migration reviews',
+            summary: {
+              english: 'The post says migration reviews improved by naming risk before tools.',
+              bangla: 'পোস্টটি বলছে, টুলের আগে ঝুঁকি চিহ্নিত করায় মাইগ্রেশন রিভিউ উন্নত হয়েছে।',
+            },
+            reviewNote: '',
+            directions: [
+              {
+                id: 'insight',
+                generatedText:
+                  'Naming the boundary first keeps the review focused on risk instead of tool preference.',
+                currentText:
+                  'Naming the boundary first keeps the review focused on risk instead of tool preference.',
+                approach: 'Interpret the practical implication.',
               },
-              post: 'Migration reviews became calmer when we named the risk boundary first.\n\nThat one decision made trade-offs explicit before the team debated tools.',
-              direction: 'Share a concrete lesson about boundary-first migration reviews.',
-            };
+              {
+                id: 'question',
+                generatedText: 'Which boundary proved most useful to name first?',
+                currentText: 'Which boundary proved most useful to name first?',
+                approach: 'Ask about one concrete detail.',
+              },
+              {
+                id: 'extend',
+                generatedText:
+                  'That framing could also make later trade-off decisions easier to revisit.',
+                currentText:
+                  'That framing could also make later trade-off decisions easier to revisit.',
+                approach: 'Extend the stated idea.',
+              },
+              {
+                id: 'challenge',
+                generatedText:
+                  'Risk-first framing helps, though teams may still need to revisit which boundary matters as the migration changes.',
+                currentText:
+                  'Risk-first framing helps, though teams may still need to revisit which boundary matters as the migration changes.',
+                approach: 'Qualify the claim respectfully.',
+              },
+            ],
+          }
+        : 'rewrite' in properties
+          ? {
+              rewrite: systemInstruction.includes('Use the source post only as raw material')
+                ? 'Your post offers a useful analysis of architecture decisions.'
+                : `**The review succeeded**, but its trade-off remained implicit.\n\n${refineHashtags}`,
+            }
+          : 'text' in properties
+            ? { text: 'A fresh grounded reply for the selected direction.' }
+            : {
+                summary: {
+                  english: 'Naming the riskiest boundary first reduced migration review churn.',
+                  bangla: 'সবচেয়ে ঝুঁকিপূর্ণ সীমা আগে চিহ্নিত করায় মাইগ্রেশন রিভিউ সহজ হয়েছে।',
+                },
+                post: 'Migration reviews became calmer when we named the risk boundary first.\n\nThat one decision made trade-offs explicit before the team debated tools.',
+                direction: 'Share a concrete lesson about boundary-first migration reviews.',
+              };
     if ('text' in properties) {
       await new Promise((resolve) => setTimeout(resolve, 350));
     }

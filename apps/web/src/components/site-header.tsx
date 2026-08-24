@@ -1,7 +1,8 @@
-import { ArrowUpRightIcon, MenuIcon } from 'lucide-react';
+import { ArrowUpRight01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
 
 import { BrandMark } from '#/components/brand-mark';
 import { Button } from '#/components/ui/button';
+import { HugeIcon } from '#/components/ui/huge-icon';
 import {
   Sheet,
   SheetClose,
@@ -46,7 +47,7 @@ export function SiteHeader() {
 
         <Button asChild size="sm" className="hidden md:inline-flex">
           <a href={releaseUrl} target="_blank" rel="noreferrer">
-            Get the extension <ArrowUpRightIcon />
+            Get the extension <HugeIcon icon={ArrowUpRight01Icon} />
           </a>
         </Button>
 
@@ -58,7 +59,7 @@ export function SiteHeader() {
               className="md:hidden"
               aria-label="Open navigation"
             >
-              <MenuIcon />
+              <HugeIcon icon={Menu01Icon} />
             </Button>
           </SheetTrigger>
           <SheetContent>
@@ -83,7 +84,7 @@ export function SiteHeader() {
             <div className="mt-auto p-4">
               <Button asChild className="w-full">
                 <a href={releaseUrl} target="_blank" rel="noreferrer">
-                  Get the extension <ArrowUpRightIcon />
+                  Get the extension <HugeIcon icon={ArrowUpRight01Icon} />
                 </a>
               </Button>
             </div>

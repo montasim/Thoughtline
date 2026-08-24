@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, ExternalLink } from 'lucide-react';
+import { ArrowRight01Icon, LinkSquare01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { AppError } from '../../../application/errors';
 import {
   feedbackAfterDirectionSelection,
   feedbackAfterEdit,
   feedbackAfterRating,
 } from '../../../application/feedback';
-import { analyzeReply, regenerateReplyDirection } from '../../../application/workflows';
+import {
+  analyzeManualReply,
+  analyzeReply,
+  regenerateReplyDirection,
+} from '../../../application/workflows';
 import { getSetupSteps, type SetupAccess } from '../../../application/setup-readiness';
 import {
   isProfileComplete,
@@ -16,6 +20,7 @@ import {
   type ReplyDirectionId,
   type Feedback,
   type ReplyHistoryRecord,
+  type SessionState,
 } from '../../../domain/schemas';
 import { hasLinkedInPermission, hasProviderPermissions } from '../../../infrastructure/permissions';
 import { storageRepository } from '../../../infrastructure/storage/chrome-storage';
@@ -31,13 +36,16 @@ import {
 } from '../../primitives/accordion';
 import { Button } from '../../primitives/button';
 import { Card } from '../../primitives/card';
+import { FieldGroup, Label } from '../../primitives/label';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from '../../primitives/tabs';
 import { Textarea } from '../../primitives/textarea';
+import { HugeIcon } from '../../components/huge-icon';
 import {
   copyText,
   EditorActions,
   EmptyState,
   InfoButton,
+  ModelProvenance,
   PageHeading,
   ProgressState,
   ReviewNote,
@@ -73,16 +81,21 @@ export function ReplyView({
   const [ephemeralRecord, setEphemeralRecord] = useState<ReplyHistoryRecord | null>(null);
   const [setupAccess, setSetupAccess] = useState<SetupAccess | null>(null);
   const [regenerationTarget, setRegenerationTarget] = useState<ReplyDirectionId | null>(null);
+  const [composeDraft, setComposeDraft] = useState<SessionState['replyCompose'] | null>(null);
   const started = useRef(new Set<string>());
+  const composeDraftRef = useRef<SessionState['replyCompose'] | null>(null);
+  const composeSaveQueue = useRef(Promise.resolve());
 
   const selectedRecord = session?.activeRecordId
     ? app?.history.find((item) => item.id === session.activeRecordId && item.type === 'reply')
     : undefined;
-  const record =
-    ephemeralRecord ??
-    (selectedRecord?.type === 'reply'
-      ? selectedRecord
-      : (app?.history.find((item) => item.type === 'reply') ?? null));
+  const record = ephemeralRecord ?? (selectedRecord?.type === 'reply' ? selectedRecord : null);
+
+  useEffect(() => {
+    if (!session) return;
+    composeDraftRef.current = session.replyCompose;
+    setComposeDraft(session.replyCompose);
+  }, [session]);
 
   useEffect(() => {
     if (
@@ -114,139 +127,165 @@ export function ReplyView({
     )
       return;
     started.current.add(analysis.requestId);
-    void job.run(async (signal) => {
-      const startedAt = new Date().toISOString();
-      const updateStage = async (stage: keyof typeof STAGE_LABELS) => {
-        await storageRepository.updateSession((current) => ({
-          ...current,
-          activeTab: 'reply',
-          analysis: {
-            status: 'running',
-            requestId: analysis.requestId,
-            tabId: analysis.tabId,
-            frameId: analysis.frameId,
-            stage,
-            startedAt,
-          },
-        }));
-      };
-      try {
-        await updateStage('checking-setup');
-        if (!app.settings.onboardingComplete || !app.settings.consent.accepted) {
-          throw new AppError(
-            'setup-incomplete',
-            'Finish setup before analyzing a LinkedIn discussion.',
-          );
-        }
-        if (!isProfileComplete(app.profile) || !isProviderReady(app.settings)) {
-          throw new AppError(
-            'setup-incomplete',
-            'Complete your profile and validate both API keys.',
-          );
-        }
-        if (!(await hasLinkedInPermission())) {
-          throw new AppError('permission-missing', 'Allow LinkedIn page access in Settings.');
-        }
-        if (!(await hasProviderPermissions())) {
-          throw new AppError(
-            'permission-missing',
-            'Allow Gemini and Groq connections in Settings.',
-          );
-        }
-        await updateStage('extracting');
-        let response: RuntimeResponse;
-        try {
-          const recipes = chrome.extension.inIncognitoContext
-            ? []
-            : await storageRepository.loadLayoutRecipes();
-          response = await chrome.tabs.sendMessage(
-            analysis.tabId,
-            {
-              type: 'content:extract-selected-post',
+    void job.run(
+      async (signal) => {
+        const startedAt = new Date().toISOString();
+        const updateStage = async (stage: keyof typeof STAGE_LABELS) => {
+          await storageRepository.updateSession((current) => ({
+            ...current,
+            activeTab: 'reply',
+            analysis: {
+              status: 'running',
               requestId: analysis.requestId,
-              intent: 'reply',
-              recipes: recipes.filter((recipe) => recipe.status === 'active'),
+              tabId: analysis.tabId,
+              frameId: analysis.frameId,
+              stage,
+              startedAt,
             },
-            { frameId: analysis.frameId },
-          );
-        } catch {
-          throw new AppError(
-            'no-post-found',
-            'LinkedIn did not return the selected post. Reload it, right-click again, and retry.',
-          );
-        }
-        if (!response.ok || !('context' in response)) {
-          if (!response.ok && response.recipeId && !chrome.extension.inIncognitoContext) {
-            await storageRepository.quarantineLayoutRecipe(response.recipeId, response.message);
+          }));
+        };
+        try {
+          await updateStage('checking-setup');
+          if (!app.settings.onboardingComplete || !app.settings.consent.accepted) {
+            throw new AppError(
+              'setup-incomplete',
+              'Finish setup before analyzing a LinkedIn discussion.',
+            );
           }
-          throw new AppError(
-            'unsupported-layout',
-            response.ok ? 'No post was returned.' : response.message,
-            {
-              recoveryKind: response.ok ? 'post' : response.recoveryKind,
+          if (!isProfileComplete(app.profile) || !isProviderReady(app.settings)) {
+            throw new AppError(
+              'setup-incomplete',
+              'Complete your profile and validate all three API keys.',
+            );
+          }
+          if (!(await hasLinkedInPermission())) {
+            throw new AppError('permission-missing', 'Allow LinkedIn page access in Settings.');
+          }
+          if (!(await hasProviderPermissions())) {
+            throw new AppError(
+              'permission-missing',
+              'Allow OpenRouter, Gemini, and Groq connections in Settings.',
+            );
+          }
+          await updateStage('extracting');
+          let response: RuntimeResponse;
+          try {
+            const recipes = chrome.extension.inIncognitoContext
+              ? []
+              : await storageRepository.loadLayoutRecipes();
+            response = await chrome.tabs.sendMessage(
+              analysis.tabId,
+              {
+                type: 'content:extract-selected-post',
+                requestId: analysis.requestId,
+                intent: 'reply',
+                recipes: recipes.filter((recipe) => recipe.status === 'active'),
+              },
+              { frameId: analysis.frameId },
+            );
+          } catch {
+            throw new AppError(
+              'no-post-found',
+              'LinkedIn did not return the selected post. Reload it, right-click again, and retry.',
+            );
+          }
+          if (!response.ok || !('context' in response)) {
+            if (!response.ok && response.recipeId && !chrome.extension.inIncognitoContext) {
+              await storageRepository.quarantineLayoutRecipe(response.recipeId, response.message);
+            }
+            throw new AppError(
+              'unsupported-layout',
+              response.ok ? 'No post was returned.' : response.message,
+              {
+                recoveryKind: response.ok ? 'post' : response.recoveryKind,
+              },
+            );
+          }
+          const context = postContextSchema.safeParse(response.context);
+          if (!context.success) {
+            throw new AppError(
+              'unsupported-layout',
+              'The selected post did not pass safety validation.',
+              { recoveryKind: 'post' },
+            );
+          }
+          await updateStage('validating');
+          await updateStage('analyzing');
+          const completed = await analyzeReply(
+            context.data,
+            structuredClone(app.profile),
+            structuredClone(app.learnedPreferences),
+            signal,
+          );
+          await updateStage('saving');
+          if (chrome.extension.inIncognitoContext) {
+            setEphemeralRecord(completed.record);
+          } else {
+            await storageRepository.addHistory(completed.record);
+          }
+          await storageRepository.updateSession((current) => ({
+            ...current,
+            activeTab: 'reply',
+            activeRecordId: completed.record.id,
+            analysis: {
+              status: 'success',
+              requestId: analysis.requestId,
+              recordId: completed.record.id,
             },
-          );
+          }));
+          await refresh();
+          return completed.record;
+        } catch (error) {
+          const resolved =
+            error instanceof AppError ? error : new AppError('unknown', 'The analysis failed.');
+          const recoveryKind =
+            resolved.causeValue &&
+            typeof resolved.causeValue === 'object' &&
+            'recoveryKind' in resolved.causeValue &&
+            (resolved.causeValue.recoveryKind === 'post' ||
+              resolved.causeValue.recoveryKind === 'comment')
+              ? resolved.causeValue.recoveryKind
+              : undefined;
+          await storageRepository.updateSession((current) => ({
+            ...current,
+            analysis: {
+              status: 'error',
+              requestId: analysis.requestId,
+              tabId: analysis.tabId,
+              frameId: analysis.frameId,
+              code: resolved.code,
+              message: resolved.message,
+              ...(recoveryKind ? { recoveryKind } : {}),
+            },
+          }));
+          throw resolved;
         }
-        const context = postContextSchema.safeParse(response.context);
-        if (!context.success) {
-          throw new AppError(
-            'unsupported-layout',
-            'The selected post did not pass safety validation.',
-            { recoveryKind: 'post' },
-          );
-        }
-        await updateStage('validating');
-        await updateStage('analyzing');
-        const completed = await analyzeReply(
-          context.data,
-          structuredClone(app.profile),
-          structuredClone(app.learnedPreferences),
-          signal,
-        );
-        await updateStage('saving');
-        if (chrome.extension.inIncognitoContext) {
-          setEphemeralRecord(completed.record);
-        } else {
-          await storageRepository.addHistory(completed.record);
-        }
-        await storageRepository.updateSession((current) => ({
-          ...current,
-          activeTab: 'reply',
-          activeRecordId: completed.record.id,
-          analysis: {
-            status: 'success',
-            requestId: analysis.requestId,
-            recordId: completed.record.id,
-          },
-        }));
-        await refresh();
-        return completed.record;
-      } catch (error) {
-        const resolved =
-          error instanceof AppError ? error : new AppError('unknown', 'The analysis failed.');
-        const recoveryKind =
-          resolved.causeValue &&
-          typeof resolved.causeValue === 'object' &&
-          'recoveryKind' in resolved.causeValue &&
-          (resolved.causeValue.recoveryKind === 'post' ||
-            resolved.causeValue.recoveryKind === 'comment')
-            ? resolved.causeValue.recoveryKind
-            : undefined;
-        await storageRepository.updateSession((current) => ({
-          ...current,
-          analysis: {
-            status: 'error',
-            requestId: analysis.requestId,
-            tabId: analysis.tabId,
-            frameId: analysis.frameId,
-            code: resolved.code,
-            message: resolved.message,
-            ...(recoveryKind ? { recoveryKind } : {}),
-          },
-        }));
-        throw resolved;
-      }
-    });
+      },
+      {
+        onStartError: async (error) => {
+          await storageRepository.updateSession((current) => {
+            if (
+              current.analysis.status !== 'pending' ||
+              current.analysis.requestId !== analysis.requestId
+            ) {
+              return current;
+            }
+            return {
+              ...current,
+              analysis: {
+                status: 'error',
+                requestId: analysis.requestId,
+                tabId: analysis.tabId,
+                frameId: analysis.frameId,
+                code: error.code,
+                message: error.message,
+              },
+            };
+          });
+          await refresh();
+        },
+      },
+    );
   }, [app, job, refresh, session]);
 
   if (!app || !session) return null;
@@ -344,24 +383,82 @@ export function ReplyView({
     );
   }
   if (!record) {
+    const compose = composeDraft ?? session.replyCompose;
+    const updateCompose = (postText: string) => {
+      const next = { postText };
+      composeDraftRef.current = next;
+      setComposeDraft(next);
+      const save = composeSaveQueue.current.then(async () => {
+        await storageRepository.updateSession((current) => ({
+          ...current,
+          replyCompose: next,
+        }));
+        await refresh();
+      });
+      composeSaveQueue.current = save.catch(() => undefined);
+    };
+    const generateManualReply = () => {
+      void job.run(async (signal) => {
+        const completed = await analyzeManualReply(
+          compose.postText,
+          structuredClone(app.profile),
+          structuredClone(app.learnedPreferences),
+          signal,
+        );
+        if (chrome.extension.inIncognitoContext) setEphemeralRecord(completed.record);
+        else await storageRepository.addHistory(completed.record);
+        await storageRepository.updateSession((current) => ({
+          ...current,
+          activeTab: 'reply',
+          activeRecordId: completed.record.id,
+          analysis: { status: 'idle' },
+          replyCompose: { postText: '' },
+        }));
+        await refresh();
+        return completed.record;
+      });
+    };
     return (
       <>
         <PageHeading
-          title="Reply"
-          description="Choose one visible LinkedIn conversation."
+          title="Reply to a post"
+          description="Paste a LinkedIn post and create four reply directions in your voice."
           compact
         />
-        <EmptyState
-          title="Right-click a LinkedIn post"
-          description="On LinkedIn, right-click a visible post, comment, or reply and choose “Draft a reply with Thoughtline.” Only that rendered conversation is analyzed."
-          action={
-            <Button
-              onClick={() => void chrome.tabs.create({ url: 'https://www.linkedin.com/feed/' })}
-            >
-              Open LinkedIn
+        <Card className="p-4">
+          <FieldGroup>
+            <Label htmlFor="reply-source">LinkedIn post</Label>
+            <Textarea
+              id="reply-source"
+              value={compose.postText}
+              onChange={(event) => updateCompose(event.target.value)}
+              placeholder="Paste the LinkedIn post you want to reply to."
+              className="min-h-[180px]"
+              maxLength={12_000}
+            />
+          </FieldGroup>
+          <p className="mt-2 flex items-center gap-1.5 text-[10.5px] text-muted before:font-bold before:text-proof before:content-['✓']">
+            Creates Insight, Question, Extend, and Challenge options using your saved voice.
+          </p>
+          {job.error ? (
+            <p role="alert" className="mt-2 text-[11px] text-danger">
+              {job.error}
+            </p>
+          ) : null}
+          <div className="mt-3 flex justify-end gap-2">
+            {job.running ? (
+              <Button variant="secondary" onClick={job.cancel}>
+                Cancel
+              </Button>
+            ) : null}
+            <Button variant="primary" disabled={job.running} onClick={generateManualReply}>
+              {job.running ? 'Trying free providers…' : 'Create reply options'}
             </Button>
-          }
-        />
+          </div>
+        </Card>
+        <p className="mt-3 text-center text-[10.5px] leading-relaxed text-muted">
+          Or right-click a visible LinkedIn post, comment, or reply for conversation-aware options.
+        </p>
       </>
     );
   }
@@ -440,25 +537,43 @@ export function ReplyView({
   const targetAuthor = record.source.targetAuthor ?? record.source.author;
   const isDiscussionTarget = targetType !== 'post';
   const targetLabel = targetType === 'reply' ? 'Selected reply' : 'Selected comment';
+  const startNewReply = async () => {
+    setEphemeralRecord(null);
+    await storageRepository.updateSession((current) => {
+      const next = {
+        ...current,
+        activeTab: 'reply' as const,
+        analysis: { status: 'idle' as const },
+        replyCompose: { postText: '' },
+      };
+      delete next.activeRecordId;
+      return next;
+    });
+    await refresh();
+  };
 
   return (
     <>
       <PageHeading
         title={
-          isDiscussionTarget
-            ? `Replying to ${targetAuthor}`
-            : `Replying to ${record.source.author}’s post`
+          record.mode === 'manual'
+            ? 'Replying to a pasted post'
+            : isDiscussionTarget
+              ? `Replying to ${targetAuthor}`
+              : `Replying to ${record.source.author}’s post`
         }
         description={
-          isDiscussionTarget
-            ? `${targetType === 'reply' ? 'Reply' : 'Comment'} target · ${record.source.author}’s post`
-            : `Source post${record.source.wordCount ? ` · ${String(record.source.wordCount)} words` : ''}`
+          record.mode === 'manual'
+            ? `Manual source${record.source.wordCount ? ` · ${String(record.source.wordCount)} words` : ''}`
+            : isDiscussionTarget
+              ? `${targetType === 'reply' ? 'Reply' : 'Comment'} target · ${record.source.author}’s post`
+              : `Source post${record.source.wordCount ? ` · ${String(record.source.wordCount)} words` : ''}`
         }
         compact
         action={
-          <span className="mt-0.5 inline-flex items-center gap-2 whitespace-nowrap font-utility text-[10px] font-medium text-proof">
-            <span className="size-1.5 rounded-full bg-proof" />4 ready
-          </span>
+          <Button size="compact" variant="secondary" onClick={() => void startNewReply()}>
+            New reply
+          </Button>
         }
       />
       {job.error ? (
@@ -556,6 +671,7 @@ export function ReplyView({
               className="min-h-[190px]"
               disabled={isRegenerating}
             />
+            <ModelProvenance provider={record.provider} model={record.model} />
           </div>
           {isRegenerating ? (
             <div
@@ -593,10 +709,12 @@ export function ReplyView({
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Open LinkedIn post <ExternalLink className="size-3" />
+                    Open LinkedIn post <HugeIcon icon={LinkSquare01Icon} className="size-3" />
                   </a>
                 ) : (
-                  <span className="text-muted">Link unavailable</span>
+                  <span className="text-muted">
+                    {record.mode === 'manual' ? 'Pasted manually' : 'Link unavailable'}
+                  </span>
                 )}
               </p>
               <p>
@@ -652,7 +770,7 @@ function SetupGuidance({
               className={`mt-0.5 grid size-[22px] place-items-center rounded-full border font-utility text-[9px] font-medium ${step.ready ? 'border-proof/30 bg-proof-soft text-proof' : 'border-[#e9c985] bg-warning-bg text-warning'}`}
               aria-hidden="true"
             >
-              {step.ready ? <Check className="size-3" /> : index + 1}
+              {step.ready ? <HugeIcon icon={Tick02Icon} className="size-3" /> : index + 1}
             </span>
             <span className="min-w-0">
               <strong className="block text-[11.5px] font-semibold text-ink">{step.label}</strong>
@@ -671,7 +789,7 @@ function SetupGuidance({
       <div className="flex justify-end p-4">
         <Button variant="primary" onClick={needsOnboarding ? onContinueSetup : onOpenSettings}>
           {needsOnboarding ? 'Continue setup' : 'Review settings'}
-          <ArrowRight className="size-3.5" />
+          <HugeIcon icon={ArrowRight01Icon} className="size-3.5" />
         </Button>
       </div>
     </Card>
@@ -679,6 +797,7 @@ function SetupGuidance({
 }
 
 function errorTitle(code: string): string {
+  if (code === 'busy') return 'Another activity is running';
   if (code === 'no-post-found') return 'No post found';
   if (code === 'linkedin-not-open') return 'LinkedIn is not open';
   if (code === 'credential-invalid') return 'Review your API keys';

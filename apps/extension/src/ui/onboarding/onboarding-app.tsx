@@ -208,8 +208,8 @@ export function OnboardingApp() {
                       >
                         Terms of Service
                       </a>{' '}
-                      and to send the content needed for a writing request to Gemini and, if
-                      automatic fallback is needed, Groq.
+                      and to send the content needed for a writing request to OpenRouter and, if
+                      automatic fallback is needed, Gemini then Groq.
                     </span>
                   </label>
                 </div>
@@ -220,8 +220,8 @@ export function OnboardingApp() {
             {step === 2 ? (
               <SetupPanel title="Allow LinkedIn and add your AI keys">
                 <p className="text-[13px] leading-[1.58] text-muted">
-                  Gemini handles each writing request first. Groq retries automatically if Gemini
-                  cannot complete it.
+                  OpenRouter handles each writing request with a curated free model. Gemini and Groq
+                  retry in order only when an earlier stage cannot complete it.
                 </p>
                 <div className="mt-4">
                   <ConnectionRow
@@ -248,14 +248,20 @@ export function OnboardingApp() {
                   />
                   <ConnectionRow
                     icon="AI"
+                    title="OpenRouter API key"
+                    description="Free-only primary · encrypted on this device"
+                    ready={app.settings.providerValidation.openrouter.state === 'valid'}
+                  />
+                  <ConnectionRow
+                    icon="G"
                     title="Gemini API key"
-                    description="Validated with Google and encrypted on this device"
+                    description="Free-tier fallback · encrypted on this device"
                     ready={app.settings.providerValidation.gemini.state === 'valid'}
                   />
                   <ConnectionRow
                     icon="GQ"
                     title="Groq API key"
-                    description="Validated with Groq and encrypted on this device"
+                    description="Free Plan fallback · encrypted on this device"
                     ready={app.settings.providerValidation.groq.state === 'valid'}
                   />
                 </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { AppError, toAppError } from '../../../application/errors';
+import { modelRegistry } from '../../../application/model-registry';
 import { providerOrchestrator } from '../../../application/provider-orchestrator';
 import type { AppData, ProviderName } from '../../../domain/schemas';
 import { requestProviderPermissions } from '../../../infrastructure/permissions';
@@ -16,9 +17,22 @@ import { Button } from '../../primitives/button';
 import { ConfirmDialog } from '../../primitives/alert-dialog';
 import { Input } from '../../primitives/input';
 import { FieldGroup, Label } from '../../primitives/label';
+import { SelectContent, SelectItem, SelectRoot, SelectTrigger } from '../../primitives/select';
 import { CredentialSetupGuide } from './credential-setup-guide';
+import { HugeIcon } from '../../components/huge-icon';
 
 const providerGuides = {
+  openrouter: {
+    title: 'Get an OpenRouter API key',
+    href: 'https://openrouter.ai/settings/keys',
+    actionLabel: 'Open OpenRouter keys',
+    steps: [
+      'Sign in to OpenRouter and open API Keys.',
+      'Create a key dedicated to Thoughtline.',
+      'Copy the key and paste it in the field above.',
+    ],
+    note: 'Thoughtline accepts only curated :free models. A $10 lifetime purchase raises the shared free-model allowance to 1,000 requests per day.',
+  },
   gemini: {
     title: 'Get a Gemini API key',
     href: 'https://aistudio.google.com/apikey',
@@ -63,22 +77,34 @@ export function ApiKeysPanel({
   triggerLabel?: string;
 }) {
   const job = useForegroundJob();
-  const [keys, setKeys] = useState<Record<ProviderName, string>>({ gemini: '', groq: '' });
+  const [keys, setKeys] = useState<Record<ProviderName, string>>({
+    openrouter: '',
+    gemini: '',
+    groq: '',
+  });
   const [visible, setVisible] = useState<Record<ProviderName, boolean>>({
+    openrouter: false,
     gemini: false,
     groq: false,
   });
   const [hasStored, setHasStored] = useState<Record<ProviderName, boolean>>({
+    openrouter: false,
     gemini: false,
     groq: false,
   });
-  const [result, setResult] = useState<Record<ProviderName, string>>({ gemini: '', groq: '' });
+  const [result, setResult] = useState<Record<ProviderName, string>>({
+    openrouter: '',
+    gemini: '',
+    groq: '',
+  });
   const [removeTarget, setRemoveTarget] = useState<ProviderName | null>(null);
 
   useEffect(() => {
-    void Promise.all([credentialVault.has('gemini'), credentialVault.has('groq')]).then(
-      ([gemini, groq]) => setHasStored({ gemini, groq }),
-    );
+    void Promise.all([
+      credentialVault.has('openrouter'),
+      credentialVault.has('gemini'),
+      credentialVault.has('groq'),
+    ]).then(([openrouter, gemini, groq]) => setHasStored({ openrouter, gemini, groq }));
   }, [app.settings.providerValidation]);
 
   const reveal = async (provider: ProviderName) => {
@@ -92,32 +118,50 @@ export function ApiKeysPanel({
   const checkConnections = async () => {
     const permission = await requestProviderPermissions();
     if (!permission) {
-      setResult({ gemini: 'Permission declined', groq: 'Permission declined' });
+      setResult({
+        openrouter: 'Permission declined',
+        gemini: 'Permission declined',
+        groq: 'Permission declined',
+      });
       return;
     }
     void job.run(
       async (signal) => {
+        const stored = {
+          openrouter: await credentialVault.get('openrouter'),
+          gemini: await credentialVault.get('gemini'),
+          groq: await credentialVault.get('groq'),
+        };
         const candidates = {
-          gemini: keys.gemini || (await credentialVault.get('gemini')),
-          groq: keys.groq || (await credentialVault.get('groq')),
+          openrouter: keys.openrouter || stored.openrouter,
+          gemini: keys.gemini || stored.gemini,
+          groq: keys.groq || stored.groq,
         };
         const outcomes = await Promise.allSettled(
-          (['gemini', 'groq'] as const).map(async (provider) => {
+          (['openrouter', 'gemini', 'groq'] as const).map(async (provider) => {
             const key = candidates[provider];
             if (!key) throw new AppError('credential-missing', 'Enter an API key.');
-            const valid = await providerOrchestrator.validate(provider, key, signal);
+            const valid = await providerOrchestrator.validate(
+              provider,
+              app.settings.aiRouting.models[provider],
+              key,
+              signal,
+            );
             if (!valid) {
               throw new AppError('credential-invalid', 'The provider rejected this API key.');
             }
             if (keys[provider]) await credentialVault.save(provider, key);
-            return provider;
+            return {
+              provider,
+              replaced: Boolean(keys[provider] && keys[provider] !== stored[provider]),
+            };
           }),
         );
         const now = new Date().toISOString();
         const next = structuredClone(app);
-        const messages = { gemini: '', groq: '' };
+        const messages = { openrouter: '', gemini: '', groq: '' };
         outcomes.forEach((outcome, index) => {
-          const provider = (['gemini', 'groq'] as const)[index];
+          const provider = (['openrouter', 'gemini', 'groq'] as const)[index];
           if (!provider) return;
           if (outcome.status === 'fulfilled') {
             const previous = next.settings.providerValidation[provider];
@@ -126,7 +170,10 @@ export function ApiKeysPanel({
               checkedAt: now,
               credentialVersion: previous.credentialVersion + (keys[provider] ? 1 : 0),
             };
-            messages[provider] = keys[provider] ? 'Passed and saved' : 'Passed';
+            if (outcome.value.replaced) next.settings.aiRouting.zeroCostConfirmed = false;
+            messages[provider] = outcome.value.replaced
+              ? 'Passed and saved; reconfirm the zero-cost route'
+              : 'Passed';
           } else {
             const previous = next.settings.providerValidation[provider];
             if (previous.state !== 'valid') {
@@ -144,10 +191,11 @@ export function ApiKeysPanel({
         });
         setResult(messages);
         setKeys({
-          gemini: outcomes[0]?.status === 'fulfilled' ? '' : keys.gemini,
-          groq: outcomes[1]?.status === 'fulfilled' ? '' : keys.groq,
+          openrouter: outcomes[0]?.status === 'fulfilled' ? '' : keys.openrouter,
+          gemini: outcomes[1]?.status === 'fulfilled' ? '' : keys.gemini,
+          groq: outcomes[2]?.status === 'fulfilled' ? '' : keys.groq,
         });
-        setVisible({ gemini: false, groq: false });
+        setVisible({ openrouter: false, gemini: false, groq: false });
         await onSave(next);
         return outcomes;
       },
@@ -162,8 +210,26 @@ export function ApiKeysPanel({
       state: 'missing',
       credentialVersion: next.settings.providerValidation[provider].credentialVersion + 1,
     };
+    next.settings.aiRouting.zeroCostConfirmed = false;
     await onSave(next);
     setRemoveTarget(null);
+  };
+
+  const selectModel = async (provider: ProviderName, model: string) => {
+    const next = structuredClone(app);
+    next.settings.aiRouting.models[provider] = model as never;
+    next.settings.providerValidation[provider] = {
+      state: hasStored[provider] ? 'unvalidated' : 'missing',
+      credentialVersion: next.settings.providerValidation[provider].credentialVersion,
+    };
+    next.settings.aiRouting.zeroCostConfirmed = false;
+    await onSave(next);
+  };
+
+  const confirmZeroCostRoute = async (confirmed: boolean) => {
+    const next = structuredClone(app);
+    next.settings.aiRouting.zeroCostConfirmed = confirmed;
+    await onSave(next);
   };
 
   return (
@@ -172,11 +238,19 @@ export function ApiKeysPanel({
         <AccordionItem value="keys">
           <AccordionTrigger>{triggerLabel}</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            {(['gemini', 'groq'] as const).map((provider) => (
-              <FieldGroup key={provider}>
+            <div className="rounded-lg border border-rule bg-soft p-3 text-[10.5px] leading-relaxed text-muted">
+              Requests follow this fixed route: <strong className="text-ink">1 OpenRouter</strong>
+              {' → '}
+              <strong className="text-ink">2 Gemini</strong>
+              {' → '}
+              <strong className="text-ink">3 Groq</strong>. Thoughtline never selects a paid
+              OpenRouter model.
+            </div>
+            {(['openrouter', 'gemini', 'groq'] as const).map((provider, index) => (
+              <FieldGroup key={provider} className="rounded-lg border border-rule bg-surface p-3">
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor={`${provider}-key`}>
-                    {provider === 'gemini' ? 'Gemini' : 'Groq'} API key
+                    {String(index + 1)}. {providerLabel(provider)} API key
                   </Label>
                   {hasStored[provider] ? (
                     <Button
@@ -188,6 +262,26 @@ export function ApiKeysPanel({
                       Remove
                     </Button>
                   ) : null}
+                </div>
+                <div className="mt-2">
+                  <Label htmlFor={`${provider}-model`}>Model</Label>
+                  <SelectRoot
+                    value={app.settings.aiRouting.models[provider]}
+                    onValueChange={(value) => void selectModel(provider, value)}
+                  >
+                    <SelectTrigger id={`${provider}-model`} className="mt-1 w-full">
+                      {modelRegistry[provider].find(
+                        (candidate) => candidate.model === app.settings.aiRouting.models[provider],
+                      )?.label ?? app.settings.aiRouting.models[provider]}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modelRegistry[provider].map((candidate) => (
+                        <SelectItem key={candidate.model} value={candidate.model}>
+                          {candidate.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </SelectRoot>
                 </div>
                 <div className="relative">
                   <Input
@@ -209,7 +303,10 @@ export function ApiKeysPanel({
                     onClick={() => void reveal(provider)}
                     className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-primary focus-visible:outline-2 focus-visible:outline-focus"
                   >
-                    {visible[provider] ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    <HugeIcon
+                      icon={visible[provider] ? ViewOffSlashIcon : ViewIcon}
+                      className="size-4"
+                    />
                   </button>
                 </div>
                 {result[provider] ? (
@@ -218,6 +315,18 @@ export function ApiKeysPanel({
                 <CredentialSetupGuide {...providerGuides[provider]} />
               </FieldGroup>
             ))}
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-rule bg-soft p-3 text-[10.5px] leading-relaxed text-muted">
+              <input
+                className="mt-0.5"
+                type="checkbox"
+                checked={app.settings.aiRouting.zeroCostConfirmed}
+                onChange={(event) => void confirmZeroCostRoute(event.target.checked)}
+              />
+              <span>
+                I confirm this route must use only OpenRouter <code>:free</code> models, Gemini with
+                billing disabled, and Groq on Free Plan.
+              </span>
+            </label>
             <p className="text-[10.5px] leading-relaxed text-muted">
               Keys are encrypted with AES-256-GCM before Chrome stores them on this device. A
               non-exportable device key unlocks them for this extension only.
@@ -234,11 +343,16 @@ export function ApiKeysPanel({
       <ConfirmDialog
         open={Boolean(removeTarget)}
         onOpenChange={(open) => !open && setRemoveTarget(null)}
-        title={`Remove ${removeTarget === 'gemini' ? 'Gemini' : 'Groq'} key?`}
-        description="New AI work will be blocked until both provider keys validate again. Existing local writing remains available."
+        title={`Remove ${removeTarget ? providerLabel(removeTarget) : ''} key?`}
+        description="New AI work will be blocked until all three provider keys validate again. Existing local writing remains available."
         confirmLabel="Remove key"
         onConfirm={() => (removeTarget ? remove(removeTarget) : undefined)}
       />
     </>
   );
+}
+
+function providerLabel(provider: ProviderName): string {
+  if (provider === 'openrouter') return 'OpenRouter';
+  return provider === 'gemini' ? 'Gemini' : 'Groq';
 }

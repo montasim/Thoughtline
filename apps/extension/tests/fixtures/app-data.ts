@@ -50,8 +50,13 @@ export function visualAppData(): AppData {
       consent: { accepted: true, version: 1, acceptedAt: timestamp },
       publicResearchEnabled: true,
       providerValidation: {
+        openrouter: { state: 'valid', credentialVersion: 1, checkedAt: timestamp },
         gemini: { state: 'valid', credentialVersion: 1, checkedAt: timestamp },
         groq: { state: 'valid', credentialVersion: 1, checkedAt: timestamp },
+      },
+      aiRouting: {
+        ...defaultAppData.settings.aiRouting,
+        zeroCostConfirmed: true,
       },
     },
     profile: {
@@ -67,6 +72,7 @@ export function visualAppData(): AppData {
         createdAt: timestamp,
         updatedAt: timestamp,
         provider: 'gemini',
+        model: 'gemini-3.5-flash',
         title: 'Architecture decisions need visible assumptions',
         source: {
           author: 'Maya Chen',
@@ -134,6 +140,7 @@ export function visualAppData(): AppData {
         createdAt: timestamp,
         updatedAt: timestamp,
         provider: 'gemini',
+        model: 'gemini-3.5-flash',
         original: 'Typescript makes boundary validation important.',
         goal: 'clearer',
         customGoal: '',
@@ -149,6 +156,7 @@ export function visualAppData(): AppData {
         createdAt: timestamp,
         updatedAt: timestamp,
         provider: 'gemini',
+        model: 'gemini-3.5-flash',
         title: 'Runtime boundaries matter more than adding TypeScript types everywhere',
         origin: {
           kind: 'source',

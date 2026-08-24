@@ -1,12 +1,13 @@
-## What’s new in v0.4.0
+## What’s new in v0.4.1
 
-- Added portable JSON configuration backups in onboarding and Settings. Export the complete setup, optionally include provider credentials, and restore available settings into a fresh installation.
-- Added permission-safe configuration imports that apply only permissions declared by the extension and clearly confirm when the imported setup becomes active.
-- Added a Hashtags setting for choosing 0–10 generated hashtags and defining preferred custom hashtags that appear in generated and refined posts.
-- Added step-by-step setup guidance and direct provider links for Gemini, Groq, and Cloudflare Workers AI credentials.
-- Improved LinkedIn post and comment extraction across changing layouts, with stronger calibration recovery and regression coverage.
-- Refined configuration backup, import-success, copy-control, and narrow-screen onboarding layouts.
-- Updated the project README and landing page with the new backup, hashtag, privacy, and provider-setup workflows.
+- Added a fixed free-only OpenRouter → Gemini → Groq drafting route. OpenRouter accepts only curated `:free` models, with Gemma 4 31B selected by default for writing and multilingual work.
+- Added model selection and API-key setup for all three providers in onboarding and Settings, covered by one explicit zero-cost route confirmation. Configuration import and export preserve the selected models and provider setup.
+- Added bounded per-provider timeouts and automatic eligible fallback so unavailable, rate-limited, or invalid OpenRouter output can continue through Gemini and then Groq without leaving the interface in an indefinite loading state.
+- Added a manual Reply journey: paste a LinkedIn post, create Insight, Question, Extend, and Challenge drafts, then edit, rate, regenerate, copy, and reopen the result through the existing Reply workspace and History.
+- Added provider and model provenance below generated replies, refinements, and posts so each result identifies the model that produced it.
+- Added visible startup and regeneration recovery states, including a clear message when another Thoughtline activity already owns the foreground job.
+- Replaced interface action icons with Hugeicons while retaining the original Thoughtline logo.
+- Refreshed the README, landing page, product screenshots, privacy/security language, and regression coverage for the new routing and manual Reply workflows.
 
 ## Install in Chrome
 

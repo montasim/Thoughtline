@@ -2,7 +2,11 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type WxtViteConfig } from 'wxt';
 
 const linkedInOrigin = 'https://www.linkedin.com/*';
-const providerOrigins = ['https://generativelanguage.googleapis.com/*', 'https://api.groq.com/*'];
+const providerOrigins = [
+  'https://openrouter.ai/*',
+  'https://generativelanguage.googleapis.com/*',
+  'https://api.groq.com/*',
+];
 const imageProviderOrigin = 'https://api.cloudflare.com/*';
 const sourceOrigins = [
   'https://hacker-news.firebaseio.com/*',

@@ -1,6 +1,6 @@
 {
-  "approvedVersion": 6,
-  "file": "simplified-ui-v6.html",
-  "approvedAt": "2026-07-26",
-  "description": "Current production visual reference for profile-grounded post refinement."
+  "approvedVersion": 7,
+  "file": "simplified-ui-v7.html",
+  "approvedAt": "2026-08-23",
+  "description": "Current production visual reference for user-selected zero-cost AI routing."
 }

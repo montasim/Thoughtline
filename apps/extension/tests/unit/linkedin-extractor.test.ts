@@ -104,6 +104,7 @@ describe('passive LinkedIn post extraction', () => {
     const run = vi.spyOn(providerOrchestrator, 'run').mockResolvedValue({
       value: commentReplyOutput(),
       provider: 'gemini',
+      model: 'gemini-3.5-flash',
       usedFallback: false,
     });
 
@@ -152,6 +153,7 @@ describe('passive LinkedIn post extraction', () => {
     const run = vi.spyOn(providerOrchestrator, 'run').mockResolvedValue({
       value: commentReplyOutput(),
       provider: 'gemini',
+      model: 'gemini-3.5-flash',
       usedFallback: false,
     });
 
