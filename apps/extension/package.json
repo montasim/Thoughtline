@@ -37,7 +37,7 @@
     "charter-webfont": "^4.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "pdfjs-dist": "^5.4.149",
+    "pdfjs-dist": "^6.2.108",
     "radix-ui": "^1.6.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
